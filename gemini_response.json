@@ -1,0 +1,432 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "As of February 13, 2026, here's the current price information for BTC, ETH, and MON:\n\n*   **BTC (Bitcoin):** The price of Bitcoin is around $66,403. Other sources show slightly different values, such as $66,206.86, $66,082.67, $66,276.42, and $66,397.76.\n*   **ETH (Ethereum):** Ethereum is currently trading at approximately $1,939.9. Other sources show slightly different values, such as $1,928.25, $1,936.84, $1,940.47, and $1,943.49.\n*   **MON (MON Protocol):** The price of MON Protocol is about $0.003227. Other sources show slightly different values, such as $0.003224, $0.003223, and $0.00333022.\n\n**Price Predictions for the Next 7 Days:**\n\nIt's important to note that cryptocurrency price predictions are speculative and can be highly volatile. Here's a summary of potential movements, but this is not financial advice:\n\n*   **BTC (Bitcoin):**\n    *   One source predicts Bitcoin could reach $71,118 by February 17, 2026.\n    *   Another source predicts a price of $68,371 around February 19.\n*   **ETH (Ethereum):**\n    *   One source predicts Ethereum will reach a high of $2,156.14 on Feb 16, 2026.\n    *   Another source suggests ETH may gain 1.5% to 3% if it holds above the $3,150 - $3,190 support zone.\n*   **MON (MON Protocol):**\n    *   One source predicts that the price of MON Protocol will decrease to as low as $0.002429 by February 15, 2026.\n    *   Another source predicts MON could reach between $0.038 - $0.041 in the next seven days.\n\nGiven the mixed predictions, it's crucial to do your own research and consider the inherent risks before making any investment decisions.\n"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "groundingMetadata": {
+        "searchEntryPoint": {
+          "renderedContent": "\u003cstyle\u003e\n.container {\n  align-items: center;\n  border-radius: 8px;\n  display: flex;\n  font-family: Google Sans, Roboto, sans-serif;\n  font-size: 14px;\n  line-height: 20px;\n  padding: 8px 12px;\n}\n.chip {\n  display: inline-block;\n  border: solid 1px;\n  border-radius: 16px;\n  min-width: 14px;\n  padding: 5px 16px;\n  text-align: center;\n  user-select: none;\n  margin: 0 8px;\n  -webkit-tap-highlight-color: transparent;\n}\n.carousel {\n  overflow: auto;\n  scrollbar-width: none;\n  white-space: nowrap;\n  margin-right: -12px;\n}\n.headline {\n  display: flex;\n  margin-right: 4px;\n}\n.gradient-container {\n  position: relative;\n}\n.gradient {\n  position: absolute;\n  transform: translate(3px, -9px);\n  height: 36px;\n  width: 9px;\n}\n@media (prefers-color-scheme: light) {\n  .container {\n    background-color: #fafafa;\n    box-shadow: 0 0 0 1px #0000000f;\n  }\n  .headline-label {\n    color: #1f1f1f;\n  }\n  .chip {\n    background-color: #ffffff;\n    border-color: #d2d2d2;\n    color: #5e5e5e;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #f2f2f2;\n  }\n  .chip:focus {\n    background-color: #f2f2f2;\n  }\n  .chip:active {\n    background-color: #d8d8d8;\n    border-color: #b6b6b6;\n  }\n  .logo-dark {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #fafafa 15%, #fafafa00 100%);\n  }\n}\n@media (prefers-color-scheme: dark) {\n  .container {\n    background-color: #1f1f1f;\n    box-shadow: 0 0 0 1px #ffffff26;\n  }\n  .headline-label {\n    color: #fff;\n  }\n  .chip {\n    background-color: #2c2c2c;\n    border-color: #3c4043;\n    color: #fff;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #353536;\n  }\n  .chip:focus {\n    background-color: #353536;\n  }\n  .chip:active {\n    background-color: #464849;\n    border-color: #53575b;\n  }\n  .logo-light {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #1f1f1f 15%, #1f1f1f00 100%);\n  }\n}\n\u003c/style\u003e\n\u003cdiv class=\"container\"\u003e\n  \u003cdiv class=\"headline\"\u003e\n    \u003csvg class=\"logo-light\" width=\"18\" height=\"18\" viewBox=\"9 9 35 35\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"\u003e\n      \u003cpath fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M42.8622 27.0064C42.8622 25.7839 42.7525 24.6084 42.5487 23.4799H26.3109V30.1568H35.5897C35.1821 32.3041 33.9596 34.1222 32.1258 35.3448V39.6864H37.7213C40.9814 36.677 42.8622 32.2571 42.8622 27.0064V27.0064Z\" fill=\"#4285F4\"/\u003e\n      \u003cpath fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 43.8555C30.9659 43.8555 34.8687 42.3195 37.7213 39.6863L32.1258 35.3447C30.5898 36.3792 28.6306 37.0061 26.3109 37.0061C21.8282 37.0061 18.0195 33.9811 16.6559 29.906H10.9194V34.3573C13.7563 39.9841 19.5712 43.8555 26.3109 43.8555V43.8555Z\" fill=\"#34A853\"/\u003e\n      \u003cpath fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M16.6559 29.8904C16.3111 28.8559 16.1074 27.7588 16.1074 26.6146C16.1074 25.4704 16.3111 24.3733 16.6559 23.3388V18.8875H10.9194C9.74388 21.2072 9.06992 23.8247 9.06992 26.6146C9.06992 29.4045 9.74388 32.022 10.9194 34.3417L15.3864 30.8621L16.6559 29.8904V29.8904Z\" fill=\"#FBBC05\"/\u003e\n      \u003cpath fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 16.2386C28.85 16.2386 31.107 17.1164 32.9095 18.8091L37.8466 13.8719C34.853 11.082 30.9659 9.3736 26.3109 9.3736C19.5712 9.3736 13.7563 13.245 10.9194 18.8875L16.6559 23.3388C18.0195 19.2636 21.8282 16.2386 26.3109 16.2386V16.2386Z\" fill=\"#EA4335\"/\u003e\n    \u003c/svg\u003e\n    \u003csvg class=\"logo-dark\" width=\"18\" height=\"18\" viewBox=\"0 0 48 48\" xmlns=\"http://www.w3.org/2000/svg\"\u003e\n      \u003ccircle cx=\"24\" cy=\"23\" fill=\"#FFF\" r=\"22\"/\u003e\n      \u003cpath d=\"M33.76 34.26c2.75-2.56 4.49-6.37 4.49-11.26 0-.89-.08-1.84-.29-3H24.01v5.99h8.03c-.4 2.02-1.5 3.56-3.07 4.56v.75l3.91 2.97h.88z\" fill=\"#4285F4\"/\u003e\n      \u003cpath d=\"M15.58 25.77A8.845 8.845 0 0 0 24 31.86c1.92 0 3.62-.46 4.97-1.31l4.79 3.71C31.14 36.7 27.65 38 24 38c-5.93 0-11.01-3.4-13.45-8.36l.17-1.01 4.06-2.85h.8z\" fill=\"#34A853\"/\u003e\n      \u003cpath d=\"M15.59 20.21a8.864 8.864 0 0 0 0 5.58l-5.03 3.86c-.98-2-1.53-4.25-1.53-6.64 0-2.39.55-4.64 1.53-6.64l1-.22 3.81 2.98.22 1.08z\" fill=\"#FBBC05\"/\u003e\n      \u003cpath d=\"M24 14.14c2.11 0 4.02.75 5.52 1.98l4.36-4.36C31.22 9.43 27.81 8 24 8c-5.93 0-11.01 3.4-13.45 8.36l5.03 3.85A8.86 8.86 0 0 1 24 14.14z\" fill=\"#EA4335\"/\u003e\n    \u003c/svg\u003e\n    \u003cdiv class=\"gradient-container\"\u003e\u003cdiv class=\"gradient\"\u003e\u003c/div\u003e\u003c/div\u003e\n  \u003c/div\u003e\n  \u003cdiv class=\"carousel\"\u003e\n    \u003ca class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFjZBilx5Nib2XFtDodmXjs46NiZJE_yocDpXtdSRsL4hPJXci5JYgXBDpW79M3NJQQNLBinODlJfnur4Uuopfa8m4-mc7qt51yr8b633Pi7ydGEVLssclE6NljWNNmKiAavJs0oFSeZG41yKjKutwAyDJ28uzxFkDeZR0m2mKUM5y2CMqmHTvORKSCvI4-aEs34HiAMM5ZJG7jwS4kFa09-DLV\"\u003eMON price prediction next 7 days\u003c/a\u003e\n    \u003ca class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFPUQ820Ygew6HBQBUH_oQwbZnTaWt9khQmW_vN5Uk6k1Z8XTwkIDYhJwaOEqx0iSPhDvzy8kftF0heOHsNIIrvDLIJsT-devoLPlJubUb0gnQHqYUNoE3-M-ZGdT53lBN_oFrgo4Co97Q0WWyTCmiraybaVF95k_ebCOZ6caAxdWGMZK2PmCFuPDAyiylS2tojIFsKa0fJ\"\u003ecurrent price of MON\u003c/a\u003e\n    \u003ca class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHKeYBYYIntFXpNqL2ehFWITElwUKqxLVG4WcQnN23iJOYv39ICPo4wl6Qoj6TMz9IpBe6ayxbDjgzmeNClat3uB8JbbYgS9VGtPTlNxkHn2IG-vu88Z0tdFwKCHf-VdyQAhsYnOHoYppk6lsfO7wdWo9M-ufpfu3ByA105mcfsgPKVqHiPnfSX6MG4WZIAvFufGkpDmtDm\"\u003ecurrent price of BTC\u003c/a\u003e\n    \u003ca class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHa6rnikDLjf6CHUZIfpKkDmWG_-3TMrzOFWSd32zxHkWA-cOH4IKAWYhZhEPU7mCvjuJGDeIT6S3Lndp53PNpzxc0xVc5rlZdfc_7BX6UXNqwEWMSeAuFF1TJ1Px8QwBgx0v0YwCyIq3kAphzLtlPiuAhNeFVT9-x3ouCBGKSeAV98wk5xtfOLJYeqFax7Y4_QU8gU6JqB\"\u003ecurrent price of ETH\u003c/a\u003e\n    \u003ca class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGP5C5u3WLOGu4w8jRyYpeB5I8QLzMIvv2GWP62feYQQ6rtn4aqdr4ZdSrUZ-xuGx1HuC-EYtG-jszdOf99-XGdzsiggB4O1Wv5iezpdQo9yO6TrvzQVbLsTJCNEcDE1A_vvlx-UPHp5UwCWKoCcEepF6podJxsIqlmaHzJGBL6jIunFy2hue4p3U8UlsnsAi77th-p12uFePlhjKCyL3XTH4iT\"\u003eETH price prediction next 7 days\u003c/a\u003e\n    \u003ca class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEcXff_feEShyFCUW0-zo4cMd3Swv8dO8nS9F-P87BK4J1aLMxFaDVcwrKdLk5ddorZxtp_DwKa_Sj_dLTJeBZGpJ0vs6jVbfqPXTT3LBlGiB5HjR0BgmKPePrHrlPxe3CT89tKaKJbettQvUx-BiTUs_s_s45lRSpfSDSEyKSdw5pweS7IeoxeGeWOpjRbxK0KOvhg-QdeUxIMTr3NI4P5wt1X\"\u003eBTC price prediction next 7 days\u003c/a\u003e\n  \u003c/div\u003e\n\u003c/div\u003e\n"
+        },
+        "groundingChunks": [
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQH_4bR5xv75h7Jwejie4hBnIxg-gcvu_QY1TB4TO332ZVxBaVjJoyTKzkvNs-9IN1pMvvB2m80xfwySirXeyItxGDH1OQ_RKb8v5OStgeDSW3wscg64ZjFMpTapgANFdUUh8ccQ6fo=",
+              "title": "tradingview.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHzQ_rsrJXjW5xMiWuu3aqiilpnpVpMFRQs22xU4Dc5gvd8S3ujDN_fmWg91nAsuA504QFZTo0mNszb-p6pwR74WKc3qUr2BRoYRwC2D519Qe4f_5rDIpl0xL2RoOkU2O1BQY4WZltXXA==",
+              "title": "coinmarketcap.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFaPmZchY8qGOznHNXzXbgz0wrx_rwfxDyUg8esU92W9ZLVhNvbyZb-7ON3HAPVy5yxKtors-VwJYKxeovLaikIcCkvGyvF2ulJ-fziKMTO2RilS2HZHCXFpbQxT-kP",
+              "title": "crypto.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQECA3sDsFDkSZ1hvzEg7mlKiNlxXWBVFn4WDF_tWyegPbTOw5F9hyY0rzSa_ahi5eKjVzCtFh7-Puq0Eq5Lrxs93G9uMmjmCcjeGVL_6vrztOXf3toHDquXk0TKkozH5sr2IuEHC13i4g==",
+              "title": "revolut.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFhGKeIN9wRJqW3f1M6z4x1Gr9N_IZHb_NCJ3uOY4auy91Z_OyVBvpckEM-4Nclym2pMcyVJO8YrreQnii_yPjyNUjbLKd3J6QTg34jrEIylbEw0OBhx7BpyJDlEoVOI9r8",
+              "title": "coindesk.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGASb1I3UQ40ZWDVE4IvTubIgBjpqekOgKezUqEg9GXUJn0uJ-_JhMU5dbdDHmwsBkqwmslxz63RXx5EBkYY2dsIuUIsz77FH8zddAgvnZHerVP24MXMTeOpz2MP1y2E4GOq7CNf7E=",
+              "title": "tradingview.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFkYoB2LQHi7SpMyHPyAYm-DVst48Wtzdyl6vzWYSvuf5X8Ho1eV6NT8qo7Kml4ztAMEw3vs-j-Dn_DK2gBXpD4hpFmOAMc88nr2ut5kjD9SAR_0eCItuBaliF9Z3dDz39xv0FNorFOqYo=",
+              "title": "coinmarketcap.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGhx49340NmnjDycuPGOZW20dOc6GS_59QjCRtQWaNZpjMfx3DVLhK0jmNyss_dy71YXb01qpy9qtqgYj_T4l0OIkvUofmqA_8Bm0F9pDpZbqkWaCHbyt9GF-Zuu85kflpDTQ==",
+              "title": "coindesk.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHnygv8UcL1oEysAtdYBBDsAwU0_a6EFT-o9bk_PD6Gs-Dwr9nErGxfl2lMmzgm82glMe-W-uCBWHSVqEWPYRSW72hR2yOPGamyAAVx8li9x6kEU58eASMqnKKTFJk6-Q3DDg==",
+              "title": "coinbase.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHL4MVZf7wNEex2Wwl0XUfu1c7NgpFopxNXCgKwpUMfLrDAfrV8_RE_EH-ZbeqvQ6AHi9SEerAUzGJeVL1ITmr9UjZKfMFx3AZvIYUJ8xXKn6EtzDNm2-SyDIF6wln-KhOb",
+              "title": "kraken.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQESbz2GV5YlyZYrofzftEvjInuUN-AIUPgA55Ropbse7lpUTLY5N3GZBXyUX6seWjzzdaVbIxgDsyJFVpGtEk1hvxwBVsDJim1Ksdd55oJrI8DB3-UKU056SiaXLC07e45OFeWe",
+              "title": "coinmarketcap.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQH2Udz6_CCkgQxB73wx2vVCRro6QeloMXszjjtuH2pGzbkCo8P4ZfLkG_5hwTymRDIsodN5vSPmSwd2JAjuqU9p-S38STDgxNdpL9AJ_-nXZpbtNOqintUY_bofw6NKvyiVx5KQ7sFRjLKd",
+              "title": "coingecko.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHJjZicsiUV6lSRzUGlnfLfTsqRVljfxa4RrvYxE8DjGgzMRg_tJGMkMOys-BQq9B4SiKtd1yhnRX4KYO5csoFKMpKpYTkBr9Xy0B2vbpCgdaehiKUgpMPhiJs=",
+              "title": "crypto.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGOPWwY65ldgqxov8O79Q4aPlNC_KY9GUJ1mqnck8kw8gGwkoksE-DXqWz5ZH8RRqimX9zJ-MF_qNzkPbP4AJPe_qC0lDGX-q_l8N3rLXYwNWPAT-i3sq1Ug980sng81fa1jLPP7xdw",
+              "title": "bybit.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHlC4RbibyH_I5zeJPqzfhsOmtxwzExVu5d6BVBREAo7slhs28oaO1gdS3wd8tRQTGgdaoa5JPf04__pUsdpF0-wqHaWM5OEhWsK7J8_mmECA25ZF_kEXwhtWjJMJ-gwAYllP3cbVE-upTxGH9K8NEkbg==",
+              "title": "coincodex.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEnMIeju7xFj4kXc1gHHuQATwIShFmWphvKwetGLkyZ-7YJn5PbWTtDFQlqqM4s6Bh1MMejEvjFx7CndigFlJtm5--spEKJqCtcFElQ4QxaLJb5fhcnRLck_F5dEn03E-rQjxsrOgZDZyWDM95u587sI9VHTOBwVjqOGA==",
+              "title": "30rates.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFsRpBHk-jkEw9t7_bDUGCLI0UgyVHsSl53O5tBKXdhEMN0WTa191_COejQrU6Q8mDExlkbTjYr3pFtR42-2f4Bm1Get5m9g-GOe2UdEYwZp8IE7hdFkh761fTJZcnod47TFcrWw6q2XIGa-y3M0r0LfSY=",
+              "title": "coincodex.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEPlQzCbFPWJReDl1PmOD9Wur2fTVt6n9JnRtoAiGVH47AIlvgMM7OtuFjsDUnJVQQb4bZcgJaseMBTiVm4zv0sLApw5WImEQsK1mkhebjWy_DR5aoiCvyunfUxMfxyPbZ6ljbNpB8HDxFxtuaAoN8qxqEDB3psAhPId-3g",
+              "title": "coindcx.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEMeSiI8E0PQhrx9M7wdB9xAtUfUAk1n6c2ZhSN82UajFLI9DItVk3d5Uxuc7N2-VG3Fgv6jvavtMnwZbob2U5pkDep6zisjn1EryBIDby0G1tzyXkI9eIMZ6dQ0dKJuu03SxMQ9ByFwR1YZSTteUM2lNwSbq0K",
+              "title": "coincodex.com"
+            }
+          },
+          {
+            "web": {
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGGvQSJeGXZV0wM369xaBZzkmVL8UKQ5q-vtxsdp86SrroL2WJ6WORlj6RuybKT6fXiwhJFiw9hx1-IqTR73pKGmH9syke1-S696T2k9T6qlpba7PMqT6xktZDgsCtOHEwb8ipFeAiVKqT_DBWZziAxdW5bYzaokn3_LYoDtQ==",
+              "title": "coindcx.com"
+            }
+          }
+        ],
+        "groundingSupports": [
+          {
+            "segment": {
+              "startIndex": 86,
+              "endIndex": 147,
+              "text": "*   **BTC (Bitcoin):** The price of Bitcoin is around $66,403"
+            },
+            "groundingChunkIndices": [
+              0
+            ],
+            "confidenceScores": [
+              0.86141276
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 149,
+              "endIndex": 213,
+              "text": "Other sources show slightly different values, such as $66,206.86"
+            },
+            "groundingChunkIndices": [
+              1
+            ],
+            "confidenceScores": [
+              0.02574674
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 213,
+              "endIndex": 225,
+              "text": ", $66,082.67"
+            },
+            "groundingChunkIndices": [
+              2
+            ],
+            "confidenceScores": [
+              0.93806374
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 225,
+              "endIndex": 237,
+              "text": ", $66,276.42"
+            },
+            "groundingChunkIndices": [
+              3
+            ],
+            "confidenceScores": [
+              0.8168166
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 237,
+              "endIndex": 253,
+              "text": ", and $66,397.76"
+            },
+            "groundingChunkIndices": [
+              4
+            ],
+            "confidenceScores": [
+              0.83966476
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 255,
+              "endIndex": 334,
+              "text": "*   **ETH (Ethereum):** Ethereum is currently trading at approximately $1,939.9"
+            },
+            "groundingChunkIndices": [
+              5
+            ],
+            "confidenceScores": [
+              0.92341757
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 336,
+              "endIndex": 399,
+              "text": "Other sources show slightly different values, such as $1,928.25"
+            },
+            "groundingChunkIndices": [
+              6
+            ],
+            "confidenceScores": [
+              0.014260019
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 399,
+              "endIndex": 410,
+              "text": ", $1,936.84"
+            },
+            "groundingChunkIndices": [
+              7
+            ],
+            "confidenceScores": [
+              0.91561687
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 410,
+              "endIndex": 421,
+              "text": ", $1,940.47"
+            },
+            "groundingChunkIndices": [
+              8
+            ],
+            "confidenceScores": [
+              0.92645663
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 421,
+              "endIndex": 436,
+              "text": ", and $1,943.49"
+            },
+            "groundingChunkIndices": [
+              9
+            ],
+            "confidenceScores": [
+              0.8022208
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 438,
+              "endIndex": 510,
+              "text": "*   **MON (MON Protocol):** The price of MON Protocol is about $0.003227"
+            },
+            "groundingChunkIndices": [
+              10
+            ],
+            "confidenceScores": [
+              0.55779403
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 512,
+              "endIndex": 575,
+              "text": "Other sources show slightly different values, such as $0.003224"
+            },
+            "groundingChunkIndices": [
+              11
+            ],
+            "confidenceScores": [
+              0.018467514
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 575,
+              "endIndex": 586,
+              "text": ", $0.003223"
+            },
+            "groundingChunkIndices": [
+              12
+            ],
+            "confidenceScores": [
+              0.92898136
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 586,
+              "endIndex": 603,
+              "text": ", and $0.00333022"
+            },
+            "groundingChunkIndices": [
+              13
+            ],
+            "confidenceScores": [
+              0.6971431
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 831,
+              "endIndex": 930,
+              "text": "*   **BTC (Bitcoin):**\n    *   One source predicts Bitcoin could reach $71,118 by February 17, 2026"
+            },
+            "groundingChunkIndices": [
+              14
+            ],
+            "confidenceScores": [
+              0.798164
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 936,
+              "endIndex": 1001,
+              "text": "*   Another source predicts a price of $68,371 around February 19"
+            },
+            "groundingChunkIndices": [
+              15
+            ],
+            "confidenceScores": [
+              0.80919975
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 1003,
+              "endIndex": 1110,
+              "text": "*   **ETH (Ethereum):**\n    *   One source predicts Ethereum will reach a high of $2,156.14 on Feb 16, 2026"
+            },
+            "groundingChunkIndices": [
+              16
+            ],
+            "confidenceScores": [
+              0.6853966
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 1116,
+              "endIndex": 1218,
+              "text": "*   Another source suggests ETH may gain 1.5% to 3% if it holds above the $3,150 - $3,190 support zone"
+            },
+            "groundingChunkIndices": [
+              17
+            ],
+            "confidenceScores": [
+              0.41810542
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 1220,
+              "endIndex": 1364,
+              "text": "*   **MON (MON Protocol):**\n    *   One source predicts that the price of MON Protocol will decrease to as low as $0.002429 by February 15, 2026"
+            },
+            "groundingChunkIndices": [
+              18
+            ],
+            "confidenceScores": [
+              0.8316802
+            ]
+          },
+          {
+            "segment": {
+              "startIndex": 1370,
+              "endIndex": 1460,
+              "text": "*   Another source predicts MON could reach between $0.038 - $0.041 in the next seven days"
+            },
+            "groundingChunkIndices": [
+              19
+            ],
+            "confidenceScores": [
+              0.46112117
+            ]
+          }
+        ],
+        "retrievalMetadata": {},
+        "webSearchQueries": [
+          "current price of BTC",
+          "current price of ETH",
+          "current price of MON",
+          "BTC price prediction next 7 days",
+          "ETH price prediction next 7 days",
+          "MON price prediction next 7 days"
+        ]
+      }
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 26,
+    "candidatesTokenCount": 545,
+    "totalTokenCount": 571,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 26
+      }
+    ],
+    "candidatesTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 545
+      }
+    ]
+  },
+  "modelVersion": "gemini-2.0-flash",
+  "responseId": "KtaOaaFshdX7xg-awMuRDA"
+}
