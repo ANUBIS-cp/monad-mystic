@@ -15,3 +15,9 @@ node_modules
 
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments/chain-31337
+# Ignore SQLite temp files
+*.db-shm
+*.db-wal
+# Ignore logs
+*.log
+gemini_*.json
