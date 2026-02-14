@@ -18,7 +18,7 @@ The system utilizes a decoupled three-tier stack managed via PM2:
 3. The Sovereign Loop: An autonomous background process that triggers research and execution cycles.
 
 ## Tech Stack
-- AI Engine: Google Gemini 2.5 Flash (via OpenClaw)
+- AI Engine: Google Gemini 2.0 Flash (via OpenClaw)
 - Execution: Ethers.js + Monad RPC
 - Process Management: PM2 for 24/7 sovereign uptime
 - Database: SQLite with WAL mode for high-concurrency event tracking
