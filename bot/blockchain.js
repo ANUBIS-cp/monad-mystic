@@ -3,7 +3,8 @@ const fs = require('fs');
 require('dotenv').config();
 
 const provider = new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL);
-const wallet = new ethers.Wallet(process.env.BOT_WALLET_PRIVATE_KEY, provider);
+const pk = (process.env.BOT_WALLET_PRIVATE_KEY || '').trim().replace(/^0x/, '');
+const wallet = new ethers.Wallet(pk, provider);
 const CA_ADDRESS = process.env.CONTRACT_ADDRESS;
 
 const CONTRACT_ABI = [
