@@ -412,7 +412,7 @@ bot.on('text', async (ctx) => {
         state.claim = ctx.message.text;
         state.step = 'PAYMENT_CHOICE';
         return ctx.reply(
-            "\uD83D\uDCB0 *HOW DO YOU WANT TO PAY?*\n\n\uD83D\uDC8E Hold 10,000+ $MYSTIC \u2192 FREE\n\uD83D\uDCB3 No $MYSTIC \u2192 Pay 0.01 MON\n\nReply *1* for $MYSTIC check\nReply *2* to pay 0.01 MON directly",
+            "\uD83D\uDCB0 *HOW DO YOU WANT TO PAY?*\n\n\uD83D\uDC8E Hold 10,000\\+ [$MYSTIC](https://nad.fun/tokens/0x05463f12b2Ca7654D8cB89873eC0cB8b2BFA7777) \u2192 FREE prediction \\+ 0\\.07 MON if correct\n\uD83D\uDCB3 No \\$MYSTIC \u2192 Pay 0\\.01 MON\n\nReply *1* to check $MYSTIC balance\nReply *2* to pay directly",
             { parse_mode: 'Markdown' }
         );
     }
