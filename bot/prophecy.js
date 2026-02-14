@@ -1,5 +1,5 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-require('dotenv').config();
+require('dotenv').config({ path: '/home/rayzelnoblesse5/monad-mystic/.env' });
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 function sanitizeClaim(userClaim) {
 // SECURITY: Remove prompt injection attempts

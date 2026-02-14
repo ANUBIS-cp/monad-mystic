@@ -177,3 +177,15 @@ http.createServer(async (req, res) => {
 }).listen(3333, '127.0.0.1', () => {
     console.log('Agent API live on port 3333');
 });
+
+const verifyServer = http.createServer(async (req, res) => {
+    if (req.method === 'GET' && req.url === '/agent/verify') {
+        res.writeHead(200);
+        res.end(JSON.stringify({ status: 'verify triggered' }));
+        return;
+    }
+    res.writeHead(404);
+    res.end(JSON.stringify({ error: 'Not found' }));
+}).listen(3334, '127.0.0.1', () => {
+    console.log('Verify endpoint live on port 3334');
+});

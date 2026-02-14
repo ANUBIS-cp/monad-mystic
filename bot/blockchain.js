@@ -1,6 +1,6 @@
 const { ethers } = require('ethers');
 const fs = require('fs');
-require('dotenv').config();
+require('dotenv').config({ path: '/home/rayzelnoblesse5/monad-mystic/.env' });
 
 const provider = new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL);
 const pk = (process.env.BOT_WALLET_PRIVATE_KEY || '').trim().replace(/^0x/, '');
@@ -12,10 +12,13 @@ const CONTRACT_ABI = [
   "function getAccuracy(address user) public view returns (uint256)",
   "function payWinner(address payable winner, uint256 amount) public",
   "function verifyProphecy(uint256 id, bool isCorrect) public",
-  "receive() external payable"
 ];
 
-const contract = new ethers.Contract(CA_ADDRESS, CONTRACT_ABI, wallet);
+let contract = null;
+const getContract = () => {
+    if (!contract) contract = new ethers.Contract(CA_ADDRESS, CONTRACT_ABI, wallet);
+    return contract;
+};
 const usedHashesPath = 'used_hashes.json';
 
 const processingHashes = new Set();
@@ -105,9 +108,8 @@ async function storeProphecyOnChain(prophecy, userRef) {
         let ts = Math.floor(Date.parse(prophecy.deadline) / 1000);
         const addr = ethers.isAddress(userRef) ? userRef : "0x0000000000000000000000000000000000000000";
 
-        const onChainId = await contract.callStatic.storeProphecy(addr, prophecy.text.slice(0,100), prophecy.prediction.slice(0,50), ts);
-
-        const tx = await contract.storeProphecy(addr, prophecy.text.slice(0,100), prophecy.prediction.slice(0,50), ts, { gasLimit: 400000 });
+        const tx = await getContract().storeProphecy(addr, prophecy.text.slice(0,100), prophecy.prediction.slice(0,50), ts, { gasLimit: 400000, maxFeePerGas: ethers.parseUnits("200", "gwei"), maxPriorityFeePerGas: ethers.parseUnits("2", "gwei") });
+        const onChainId = null;
         const receipt = await tx.wait();
 
         return { hash: receipt.hash, onChainId };
@@ -119,20 +121,21 @@ async function storeProphecyOnChain(prophecy, userRef) {
 
 async function finalizeProphecy(id, isCorrect) {
     try {
-        const tx = await contract.verifyProphecy(id, isCorrect, { gasLimit: 300000 });
+        const tx = await getContract().verifyProphecy(id, isCorrect, { gasLimit: 300000 });
         await tx.wait();
         return true;
     } catch (e) { return false; }
 }
 
-async function payoutWinner(winnerAddress) {
+async function payoutWinner(winnerAddress, amount) {
+    amount = amount || "0.04";
     // SECURITY: On-chain payout only (contract holds pool). No direct fallback to keep funds safe in contract.
     try {
         const balance = await provider.getBalance(wallet.address);
         if (balance < ethers.parseEther("0.05")) { // buffer for gas
             console.log("⚠️ Low gas in bot wallet — payout may fail.");
         }
-        const tx = await contract.payWinner(winnerAddress, ethers.parseEther("0.04"), { gasLimit: 200000 });
+        const tx = await getContract().payWinner(winnerAddress, ethers.parseEther(amount), { gasLimit: 200000 });
         await tx.wait();
         return { success: true, method: 'contract' };
     } catch (e) {
