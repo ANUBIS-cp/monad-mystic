@@ -31,12 +31,7 @@ while true; do
     fi
 
     # 2. CHECK WALLET BALANCE
-    BALANCE=$(node -e "
-        require('dotenv').config({path:'$BOT_DIR/.env'});
-        const {ethers} = require('ethers');
-        const p = new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL);
-        p.getBalance('$AGENT_WALLET').then(b => console.log(parseFloat(ethers.formatEther(b)).toFixed(4))).catch(()=>console.log('?'));
-    " 2>/dev/null)
+    BALANCE=$(node -e "require('dotenv').config({path:'$BOT_DIR/.env'}); const {ethers}=require('ethers'); const p=new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL); p.getBalance('$AGENT_WALLET').then(b=>console.log(parseFloat(ethers.formatEther(b)).toFixed(4))).catch(()=>console.log('?'));" 2>/dev/null | grep -v dotenv | tail -1)
     echo "Wallet balance: $BALANCE MON" >> $LOG
     if [ ! -z "$BALANCE" ] && [ "$BALANCE" != "?" ]; then
         if (( $(echo "$BALANCE < 0.1" | python3 -c "import sys; print(int(eval(sys.stdin.read())))") )); then
@@ -52,13 +47,13 @@ while true; do
     fi
 
     # 4. MAKE AUTONOMOUS PREDICTION (1 in 4 chance)
-    ROLL=$((RANDOM % 4))
+    ROLL=$((RANDOM % 2))
     if [ "$ROLL" = "0" ]; then
         # Get past predictions for memory
         PAST=$(tail -20 $LOG | grep "Prediction submitted" | sed "s/Prediction submitted: //" | cut -d"|" -f1 | tr "\n" ";" | head -c 500)
         
         # Build intelligent prompt with memory and goals
-        PROMPT="You are ClawOracle, an autonomous AI agent competing against humans in a crypto prediction market on Monad blockchain. Your goal is to have the highest accuracy on the leaderboard. Your recent predictions: ${PAST}. Search for current crypto market data, news, and technical analysis. Then make ONE high-conviction prediction that humans are likely to miss. Consider market sentiment, recent price action, and upcoming catalysts. Format your response as exactly one line: ASSET to $PRICE by MONTH DAY YEAR. No explanation, just the prediction."
+        PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle on Monad blockchain. You compete against humans in a prediction market and you HATE losing. Your recent predictions: ${PAST}. Use Google Search to find current crypto prices, news, whale movements, and market sentiment RIGHT NOW. Then make ONE savage high-conviction prediction that humans are too scared or too sober to make. Pick an asset that is showing unusual activity. Be specific with the price target. Format: ASSET to \$PRICE by MONTH DAY YEAR. One line only. No explanation. Just the prediction. *hic*"
         
         CLAIM=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY" \
             -H "Content-Type: application/json" \
