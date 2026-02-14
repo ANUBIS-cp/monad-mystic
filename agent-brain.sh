@@ -46,7 +46,7 @@ while true; do
     fi
 
     # 3. TRIGGER VERIFICATION of expired predictions
-    VERIFY_RESULT=$(curl -s http://127.0.0.1:3334/agent/verify 2>/dev/null)
+    VERIFY_RESULT=$(curl -s http://127.0.0.1:3333/agent/verify 2>/dev/null)
     if [ ! -z "$VERIFY_RESULT" ]; then
         echo "Verification triggered: $VERIFY_RESULT" >> $LOG
     fi

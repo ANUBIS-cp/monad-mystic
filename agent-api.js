@@ -79,6 +79,12 @@ http.createServer(async (req, res) => {
         return;
     }
 
+    if (req.method === 'GET' && req.url === '/agent/verify') {
+        res.writeHead(200);
+        res.end(JSON.stringify({ status: 'verify triggered' }));
+        return;
+    }
+
     if (req.method !== 'POST' || (req.url !== '/agent/predict' && req.url !== '/predict')) {
         res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return;
     }

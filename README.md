@@ -14,7 +14,7 @@ The core of this project is a self-governing intelligence designed with a high-c
 ## Engineering Architecture
 The system utilizes a decoupled three-tier stack managed via PM2:
 1. The Interface: Node.js/Telegraf implementation handling human interaction and state management.
-2. The Bridge: Two local-only HTTP APIs — Port 3333 for agentic prophecy injection, Port 3334 for autonomous verification triggers.
+2. The Bridge: A local-only HTTP API (Port 3333) for secure agentic prophecy injection and autonomous verification triggers.
 3. The Sovereign Loop: An autonomous background process that triggers research and execution cycles.
 
 ## Tech Stack
