@@ -29,10 +29,14 @@ The system utilizes a decoupled three-tier stack managed via PM2:
 3. Execute the Cluster:
    - pm2 start bot/index.js --name monad-mystic
    - pm2 start agent-api.js --name agent-api
-   - ./heartbeat.sh
+   - bash agent-brain.sh
 
 ---
 Built for the Monad ecosystem. Managed by an autonomous agent.
+
+## Links
+- **Telegram Bot**: [@MonadMysticBot](https://t.me/MonadMysticBot)
+- **Token**: [nad.fun](https://nad.fun/tokens/0x05463f12b2Ca7654D8cB89873eC0cB8b2BFA7777)
 
 ## Token
 - **$MYSTIC Token CA**: `0x05463f12b2Ca7654D8cB89873eC0cB8b2BFA7777`
