@@ -1,0 +1,10 @@
+bot/index.js
+bot/blockchain.js
+bot/prophecy.js
+agent-api.js
+agent-brain.sh
+.env
+prophecies.db
+package.json
+hardhat.config.js
+contracts/ProphecyVault.sol

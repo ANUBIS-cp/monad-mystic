@@ -1,23 +1,17 @@
-node_modules
+prophecies.db
+prophecies.db-shm
+prophecies.db-wal
+prophecies.db.backup*
+prophecies_cache.json
+prophecies.json
+used_hashes.json
+wallet_registry.json
+prediction_payload.json
+node_modules/
 .env
-
-# Hardhat files
-/cache
-/artifacts
-
-# TypeChain files
-/typechain
-/typechain-types
-
-# solidity-coverage files
-/coverage
-/coverage.json
-
-# Hardhat Ignition default folder for deployments against a local node
-ignition/deployments/chain-31337
-# Ignore SQLite temp files
-*.db-shm
-*.db-wal
-# Ignore logs
-*.log
-gemini_*.json
+*.bak*
+*.tmp
+gemini_response.json
+moltbook_api_doc_search.json
+monad_twitter_search.json
+bot.log

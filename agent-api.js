@@ -19,7 +19,7 @@ sqldb.configure('busyTimeout', 5000);  // Wait up to 5s if locked
 
 function escapeMD(str) {
     if (!str) return '';
-    return str.replace(/[_*`\[\]()~`>#+\-=\|\{\}\.!]/g, '\\$&');
+    return str.replace(/[_*`[\]()~>#+=|{}.!-]/g, '\\$&');
 }
 
 const getDB = () => new Promise((resolve) => {

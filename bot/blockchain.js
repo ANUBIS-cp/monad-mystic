@@ -140,4 +140,4 @@ async function payoutWinner(winnerAddress) {
     }
 }
 
-module.exports = { verifyPayment, storeProphecyOnChain, finalizeProphecy, payoutWinner };
+module.exports = { verifyPayment, storeProphecyOnChain, finalizeProphecy, payoutWinner, wallet };

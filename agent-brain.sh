@@ -11,10 +11,14 @@ while true; do
     echo "--- Heartbeat $(date) ---" >> $LOG
 
     # 1. Health check
-    STATUS=$(pm2 jlist 2>/dev/null | python3 -c "import sys,json; procs=json.load(sys.stdin); print(next((p['pm2_env']['status'] for p in procs if p['name']=='monad-mystic'),'missing'))" 2>/dev/null)
-    if [[ "$STATUS" != "online" ]]; then
-        echo "BOT DOWN ($STATUS) - restarting" >> $LOG
-        cd $BOT_DIR && pm2 start bot/index.js --name monad-mystic --cwd $BOT_DIR
+    STATUS=$(pm2 list | grep "monad-mystic" | grep -c "online" || echo "0")
+    if [[ "$STATUS" == "online" ]]; then
+        echo "index.js is running - stopping, and starting prophecy.js " >> $LOG
+         pm2 stop  monad-mystic
+        cd $BOT_DIR && pm2 start prophecy.js --name prophecy --cwd $BOT_DIR
+        else
+         echo "index.js is not running - starting prophecy.js " >> $LOG
+        cd $BOT_DIR && pm2 start prophecy.js --name prophecy --cwd $BOT_DIR
     fi
 
     # 2. Make prediction every ~3 hours (1 in 6 chance per 30min loop)
