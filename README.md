@@ -33,3 +33,9 @@ The system utilizes a decoupled three-tier stack managed via PM2:
 
 ---
 Built for the Monad ecosystem. Managed by an autonomous agent.
+
+## Token
+- **$MYSTIC Token CA**: `0x05463f12b2Ca7654D8cB89873eC0cB8b2BFA7777`
+- **Network**: Monad Mainnet
+- **Platform**: nad.fun
+- **Utility**: Hold 10,000+ $MYSTIC for free predictions and MON bonus payouts
