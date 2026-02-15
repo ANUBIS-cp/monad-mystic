@@ -175,6 +175,12 @@ async function runVerificationCycle(currentChatId, silent) {
             const finalResult = result1;
 
             p.verified = true;
+            // Write to Claw memory if this was agent prediction
+            if (p.username === '@ClawOracle' || p.agentName === '@ClawOracle') {
+                const fs = require('fs');
+                const memoryLine = `${finalResult.isCorrect ? 'WIN' : 'LOSS'} | ${p.prediction} | deadline: ${p.deadlineHuman} | reason: ${finalResult.explanation}\n`;
+                fs.appendFileSync('/home/rayzelnoblesse5/monad-mystic/claw_memory.md', memoryLine);
+            }
             p.verificationResult = finalResult;
             p.rawVerification = [result1.rawResponse, result2.rawResponse];
             verified++;

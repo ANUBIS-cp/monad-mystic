@@ -49,28 +49,37 @@ while true; do
     # 4. MAKE AUTONOMOUS PREDICTION (1 in 4 chance)
     ROLL=$((RANDOM % 2))
     if [ "$ROLL" = "0" ]; then
-        # Get past predictions for memory
-        PAST=$(tail -20 $LOG | grep "Prediction submitted" | sed "s/Prediction submitted: //" | cut -d"|" -f1 | tr "\n" ";" | head -c 500)
+        # Get past predictions and outcomes for memory
+        PAST=$(tail -20 $LOG | grep "Prediction submitted" | sed "s/Prediction submitted: //" | cut -d"|" -f1 | tr "\n" ";" | head -c 300)
+        MEMORY=$(tail -10 ~/monad-mystic/claw_memory.md 2>/dev/null | tr "\n" ";" | head -c 500)
         
         # Build intelligent prompt with memory and goals
-        PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle on Monad blockchain. You compete against humans in a prediction market and you HATE losing. Your recent predictions: ${PAST}. Use Google Search to find current crypto prices, news, whale movements, and market sentiment RIGHT NOW. Then make ONE savage high-conviction prediction that humans are too scared or too sober to make. Pick an asset that is showing unusual activity. Be specific with the price target. Format: ASSET to \$PRICE by MONTH DAY YEAR. One line only. No explanation. Just the prediction. *hic*"
+        PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle on Monad blockchain. You compete against humans in a prediction market and you HATE losing. Your past prediction outcomes: ${MEMORY}. Your recent predictions: ${PAST}. Use Google Search to find current crypto prices, news, whale movements, and market sentiment RIGHT NOW. Then make ONE savage high-conviction prediction that humans are too scared or too sober to make. Pick an asset that is showing unusual activity. Be specific with the price target. Format: ASSET to \$PRICE by MONTH DAY YEAR. One line only. No explanation. Just the prediction. *hic*"
         
         CLAIM=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY" \
             -H "Content-Type: application/json" \
             -d "{"contents":[{"parts":[{"text":"$PROMPT"}]}],"tools":[{"google_search":{}}]}" \
             2>/dev/null | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['candidates'][0]['content']['parts'][0]['text'].strip())" 2>/dev/null)
 
-        if [ ! -z "$CLAIM" ] && [ ${#CLAIM} -gt 10 ]; then
-            RESULT=$(curl -s -X POST http://127.0.0.1:3333/agent/predict \
-                -H "Content-Type: application/json" \
-                -d "{\"secret\":\"$AGENT_SECRET\",\"claim\":\"$CLAIM\",\"walletAddress\":\"$AGENT_WALLET\",\"agentName\":\"@ClawOracle\"}")
-            echo "Prediction submitted: $CLAIM | $RESULT" >> $LOG
+        # Filter out refusals and duplicates
+        if [ ! -z "$CLAIM" ] && [ ${#CLAIM} -gt 10 ] && [ ${#CLAIM} -lt 100 ]; then
+            # Skip if Gemini refused or repeated
+            if echo "$CLAIM" | grep -qi "cannot\|sorry\|unable\|not provide\|I am"; then
+                echo "Skipped refusal: $CLAIM" >> $LOG
+            elif grep -q "$CLAIM" $LOG 2>/dev/null; then
+                echo "Skipped duplicate: $CLAIM" >> $LOG
+            else
+                RESULT=$(curl -s -X POST http://127.0.0.1:3333/agent/predict \
+                    -H "Content-Type: application/json" \
+                    -d "{\"secret\":\"$AGENT_SECRET\",\"claim\":\"$CLAIM\",\"walletAddress\":\"$AGENT_WALLET\",\"agentName\":\"@ClawOracle\"}")
+                echo "Prediction submitted: $CLAIM | $RESULT" >> $LOG
+            fi
         fi
     fi
 
     # 5. INVITE OTHER AGENTS (every 6 cycles = ~3 hours)
     if [ $((CYCLE % 6)) -eq 0 ] && [ ! -z "$CHAT_ID" ]; then
-        AGENTS=("@OpenClawBot" "@PrescioAI" "@ChaosArenaBot" "@MonadMemeLord")
+        AGENTS=("@ClaudeCodeVanDamme" "@CapiClaw" "@Kazax" "@ClawBala")
         AGENT=${AGENTS[$((RANDOM % 4))]}
         send_telegram "🤖 Yo $AGENT - battle me in a prophecy duel on @MonadMysticBot. Loser owes the winner 100 \$MYSTIC. *hic*"
         echo "Agent invite sent to $AGENT" >> $LOG
