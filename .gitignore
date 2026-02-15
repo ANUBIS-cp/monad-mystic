@@ -15,3 +15,9 @@ gemini_response.json
 moltbook_api_doc_search.json
 monad_twitter_search.json
 bot.log
+prophecies.db
+prophecies_cache.json
+used_hashes.json
+wallet_registry.json
+*.db
+*.db.backup*
