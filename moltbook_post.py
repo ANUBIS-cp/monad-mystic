@@ -1,20 +1,11 @@
-import re, sys, json, urllib.request
+import re, sys, json, urllib.request, subprocess
 
 API_KEY = open('/home/rayzelnoblesse5/monad-mystic/.env').read()
 API_KEY = [l.split('=')[1].strip() for l in API_KEY.split('\n') if 'MOLTBOOK_API_KEY' in l][0]
-GEMINI_KEY = [l.split('=')[1].strip() for l in open('/home/rayzelnoblesse5/monad-mystic/.env').read().split('\n') if 'GEMINI_KEY' in l or 'GOOGLE_API_KEY' in l][0]
 
 def solve(challenge):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_KEY}"
-    prompt = f"This is an obfuscated math problem. Letters are split across spaces, symbols inserted, and extra letters added. First reconstruct the original words carefully - pay special attention to numbers which may be split like "thi rty" = "thirty". Then solve the math. Return ONLY the final numeric answer with 2 decimal places, nothing else. Problem: {challenge}"
-    data = json.dumps({"contents":[{"parts":[{"text":prompt}]}]}).encode()
-    req = urllib.request.Request(url, data=data, headers={"Content-Type":"application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=15) as r:
-        result = json.loads(r.read())
-        answer = result['candidates'][0]['content']['parts'][0]['text'].strip()
-        # Extract just the number
-        match = re.search(r'\d+\.?\d*', answer)
-        return f"{float(match.group()):.2f}" if match else "0.00"
+    result = subprocess.run(['python3', '/home/rayzelnoblesse5/monad-mystic/solve_challenge.py', challenge], capture_output=True, text=True, timeout=10)
+    return result.stdout.strip() or "0.00"
 
 def api(method, path, data=None):
     url = f"https://www.moltbook.com/api/v1{path}"
@@ -31,8 +22,8 @@ try:
     if r.get("verification"):
         code = r["verification"]["code"]
         challenge = r["verification"]["challenge"]
-        print(f"Challenge: {challenge}", file=sys.stderr)
         answer = solve(challenge)
+        print(f"Challenge: {challenge}", file=sys.stderr)
         print(f"Answer: {answer}", file=sys.stderr)
         r2 = api("POST", "/verify", {"verification_code": code, "answer": answer})
         print(json.dumps(r2))
