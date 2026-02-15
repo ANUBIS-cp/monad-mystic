@@ -105,6 +105,7 @@ except: pass
             -d "{\"contents\":[{\"parts\":[{\"text\":\"$PROMPT_SAFE\"}]}],\"tools\":[{\"google_search\":{}}]}" \
             2>/dev/null | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['candidates'][0]['content']['parts'][0]['text'].strip())" 2>/dev/null)
 
+        CLAIM=$(echo "$CLAIM" | tr -d '\n' | head -c 150)
         # Filter out refusals and duplicates
         if [ ! -z "$CLAIM" ] && [ ${#CLAIM} -gt 10 ] && [ ${#CLAIM} -lt 150 ]; then
             # Skip if Gemini refused or repeated
