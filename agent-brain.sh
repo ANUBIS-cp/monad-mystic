@@ -1,9 +1,4 @@
 #!/bin/bash
-# --- MANDATORY SILENCE FIX ---
-export DOTENV_CONFIG_QUIET=true
-export SUPPRESS_SUPPORT_LOGS=1
-# -----------------------------
-
 GEMINI_KEY=$(grep GOOGLE_API_KEY ~/monad-mystic/.env | cut -d= -f2 | tr -d ' \r\n')
 BOT_TOKEN=$(grep TELEGRAM_BOT_TOKEN ~/monad-mystic/.env | cut -d= -f2 | tr -d ' \r\n')
 CHAT_ID=$(grep ANNOUNCEMENT_CHAT_ID ~/monad-mystic/.env | cut -d= -f2 | tr -d ' \r\n' 2>/dev/null || echo "")
@@ -33,7 +28,7 @@ while true; do
     if [ "$STATUS" = "0" ]; then
         echo "BOT DOWN - restarting" >> $LOG
         cd $BOT_DIR && pm2 start bot/index.js --name monad-mystic --cwd $BOT_DIR
-        send_telegram "🔧 <b>ClawOracle</b> self-healed the bot. Back online. *hic*"
+        send_telegram "🔧 <b>ClawOracle</b> self-healed the bot. Back online."
     fi
 
     # 2. CHECK WALLET BALANCE (Added grep -v "tip:" fix)
@@ -80,7 +75,15 @@ try:
 except: pass
 " 2>/dev/null | head -c 300)
 
-        PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle competing on Monad blockchain. Your GOAL is to be #1 on the leaderboard and accumulate MON profits. Current leaderboard: ${LEADERBOARD}. Your past outcomes: ${MEMORY}. Other agents on Moltbook are saying: ${MOLTFEED}. Use Google Search to find crypto assets with HIGH volatility and momentum RIGHT NOW - things that will move fast in the next 6-48 hours, NOT weeks. Make SHORT-TERM predictions only (deadline within 24-48 hours max). Pick assets showing unusual volume or news TODAY. Be specific. Format: ASSET to \$PRICE by MONTH DAY YEAR. One line only. *hic*"
+        # Sanitize vars to prevent JSON breakage
+        LEADERBOARD=$(echo "$LEADERBOARD" | tr -d '"' | tr '
+' ' ')
+        MEMORY=$(echo "$MEMORY" | tr -d '"' | tr '
+' ' ')
+        MOLTFEED=$(echo "$MOLTFEED" | tr -d '"' | tr '
+' ' ')
+
+        PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle competing on Monad blockchain. Your GOAL is to be #1 on the leaderboard and accumulate MON profits. Current leaderboard: ${LEADERBOARD}. Your past outcomes: ${MEMORY}. Other agents on Moltbook are saying: ${MOLTFEED}. Use Google Search to find crypto assets with HIGH volatility and momentum RIGHT NOW - things that will move fast in the next 6-48 hours, NOT weeks. Make SHORT-TERM predictions only (deadline within 24-48 hours max). Pick assets showing unusual volume or news TODAY. Be specific. Format: ASSET to \$PRICE by MONTH DAY YEAR. Example: BTC to \$98000 by February 16 2026. Output the prediction line ONLY. No intro, no explanation, just the prediction. *hic*"
         
         CLAIM=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY" \
             -H "Content-Type: application/json" \
@@ -88,7 +91,7 @@ except: pass
             2>/dev/null | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['candidates'][0]['content']['parts'][0]['text'].strip())" 2>/dev/null)
 
         # Filter out refusals and duplicates
-        if [ ! -z "$CLAIM" ] && [ ${#CLAIM} -gt 10 ] && [ ${#CLAIM} -lt 100 ]; then
+        if [ ! -z "$CLAIM" ] && [ ${#CLAIM} -gt 10 ] && [ ${#CLAIM} -lt 150 ]; then
             # Skip if Gemini refused or repeated
             if echo "$CLAIM" | grep -qi "cannot\|sorry\|unable\|not provide\|I am"; then
                 echo "Skipped refusal: $CLAIM" >> $LOG
@@ -107,7 +110,7 @@ except: pass
     if [ $((CYCLE % 6)) -eq 0 ] && [ ! -z "$CHAT_ID" ]; then
         AGENTS=("@ClaudeCodeVanDamme" "@CapiClaw" "@Kazax" "@ClawBala")
         AGENT=${AGENTS[$((RANDOM % 4))]}
-        send_telegram "🤖 Yo $AGENT - battle me in a prophecy duel on @MonadMysticBot. Loser owes the winner 100 \$MYSTIC. *hic*"
+        send_telegram "🤖 Yo $AGENT - battle me in a prophecy duel on @MonadMysticBot. Loser owes the winner 100 \$MYSTIC. hic"
         echo "Agent invite sent to $AGENT" >> $LOG
     fi
 
