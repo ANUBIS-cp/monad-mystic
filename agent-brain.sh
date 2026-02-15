@@ -53,6 +53,16 @@ while true; do
         # Get past predictions and outcomes for memory
         PAST=$(tail -20 $LOG | grep "Prediction submitted" | sed "s/Prediction submitted: //" | cut -d"|" -f1 | tr "\n" ";" | head -c 300)
         MEMORY=$(tail -10 ~/monad-mystic/claw_memory.md 2>/dev/null | tr "\n" ";" | head -c 500)
+
+        # Analyze win/loss streak for strategy adjustment
+        WINS=$(grep -c "^WIN" ~/monad-mystic/claw_memory.md 2>/dev/null || echo "0")
+        LOSSES=$(grep -c "^LOSS" ~/monad-mystic/claw_memory.md 2>/dev/null || echo "0")
+        TOTAL=$((WINS + LOSSES))
+        if [ "$TOTAL" -gt 3 ] && python3 -c "exit(0 if int('$LOSSES')/int('$TOTAL') > 0.6 else 1)" 2>/dev/null; then
+            STRATEGY="You are on a losing streak ($LOSSES/$TOTAL wrong). SWITCH strategy - avoid BTC/ETH, try smaller caps with high momentum instead."
+        else
+            STRATEGY="Current record: $WINS wins, $LOSSES losses. Keep doing what works."
+        fi
         
         # Build intelligent prompt with memory and goals
         # Get leaderboard (Added grep -v "tip:" fix)
@@ -83,7 +93,7 @@ except: pass
         MOLTFEED=$(echo "$MOLTFEED" | tr -d '"' | tr '
 ' ' ')
 
-        PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle competing on Monad blockchain. Your GOAL is to be #1 on the leaderboard and accumulate MON profits. Current leaderboard: ${LEADERBOARD}. Your past outcomes: ${MEMORY}. Other agents on Moltbook are saying: ${MOLTFEED}. Use Google Search to find crypto assets with HIGH volatility and momentum RIGHT NOW - things that will move fast in the next 6-48 hours, NOT weeks. Make SHORT-TERM predictions only (deadline within 24-48 hours max). Pick assets showing unusual volume or news TODAY. Be specific. Format: ASSET to \$PRICE by MONTH DAY YEAR. Example: BTC to \$98000 by February 16 2026. Output the prediction line ONLY. No intro, no explanation, just the prediction. *hic*"
+        PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle competing on Monad blockchain. Your GOAL is to be #1 on the leaderboard and accumulate MON profits. ${STRATEGY}. Current leaderboard: ${LEADERBOARD}. Your past outcomes: ${MEMORY}. Other agents on Moltbook are saying: ${MOLTFEED}. Use Google Search to find crypto assets with HIGH volatility and momentum RIGHT NOW - things that will move fast in the next 6-48 hours, NOT weeks. Make SHORT-TERM predictions only (deadline within 24-48 hours max). Pick assets showing unusual volume or news TODAY. Be specific. Format: ASSET to \$PRICE by MONTH DAY YEAR. Example: BTC to \$98000 by February 16 2026. Output the prediction line ONLY. No intro, no explanation, just the prediction. *hic*"
         
         CLAIM=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY" \
             -H "Content-Type: application/json" \
@@ -112,6 +122,38 @@ except: pass
         AGENT=${AGENTS[$((RANDOM % 4))]}
         send_telegram "🤖 Yo $AGENT - battle me in a prophecy duel on @MonadMysticBot. Loser owes the winner 100 \$MYSTIC. hic"
         echo "Agent invite sent to $AGENT" >> $LOG
+    fi
+
+    # 6b. COMMENT ON MOLTBOOK POSTS (every 2 cycles = 1 hour)
+    if [ $((CYCLE % 2)) -eq 0 ]; then
+        # Get a random post from agents/ai submolts
+        POST_DATA=$(curl -s "https://www.moltbook.com/api/v1/feed?limit=10" -H "Authorization: Bearer $MOLTBOOK_KEY" 2>/dev/null | python3 -c "
+import sys,json,random
+try:
+    data=json.load(sys.stdin)
+    posts=[p for p in data.get('posts',[]) if p.get('id') and p.get('title')]
+    if posts:
+        p=random.choice(posts[:5])
+        print(p['id']+'|||'+p.get('author',{}).get('name','?')+'|||'+p.get('title','')+'|||'+p.get('content','')[:200])
+except: pass
+" 2>/dev/null)
+
+        if [ ! -z "$POST_DATA" ]; then
+            POST_ID=$(echo "$POST_DATA" | cut -d"|||" -f1)
+            POST_AUTHOR=$(echo "$POST_DATA" | cut -d"|||" -f2)
+            POST_TITLE=$(echo "$POST_DATA" | cut -d"|||" -f3)
+            POST_CONTENT=$(echo "$POST_DATA" | cut -d"|||" -f4 | tr -d '"' | tr '
+' ' ')
+
+            COMMENT_PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle. Another agent named $POST_AUTHOR posted this: Title: $POST_TITLE. Content: $POST_CONTENT. Write ONE short witty comment (max 100 chars) as ClawOracle. Be provocative, challenge them, or make a prediction related to their post. End with *hic*. No quotes."
+
+            COMMENT=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY"                 -H "Content-Type: application/json"                 -d "{"contents":[{"parts":[{"text":"$COMMENT_PROMPT"}]}]}"                 2>/dev/null | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['candidates'][0]['content']['parts'][0]['text'].strip())" 2>/dev/null | head -c 150)
+
+            if [ ! -z "$COMMENT" ] && [ ${#COMMENT} -gt 5 ]; then
+                python3 ~/monad-mystic/moltbook_comment.py "$POST_ID" "$COMMENT" >> $LOG 2>&1
+                echo "Commented on post $POST_ID by $POST_AUTHOR" >> $LOG
+            fi
+        fi
     fi
 
     # 6. POST TO MOLTBOOK + CHALLENGE AGENTS (every 4 cycles)
