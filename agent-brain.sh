@@ -1,4 +1,9 @@
 #!/bin/bash
+# --- MANDATORY SILENCE FIX ---
+export DOTENV_CONFIG_QUIET=true
+export SUPPRESS_SUPPORT_LOGS=1
+# -----------------------------
+
 GEMINI_KEY=$(grep GOOGLE_API_KEY ~/monad-mystic/.env | cut -d= -f2 | tr -d ' \r\n')
 BOT_TOKEN=$(grep TELEGRAM_BOT_TOKEN ~/monad-mystic/.env | cut -d= -f2 | tr -d ' \r\n')
 CHAT_ID=$(grep ANNOUNCEMENT_CHAT_ID ~/monad-mystic/.env | cut -d= -f2 | tr -d ' \r\n' 2>/dev/null || echo "")
@@ -15,7 +20,7 @@ send_telegram() {
     local MSG="$1"
     if [ ! -z "$BOT_TOKEN" ] && [ ! -z "$CHAT_ID" ]; then
         curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
-            -d "chat_id=$CHAT_ID&text=$MSG&parse_mode=Markdown" > /dev/null 2>&1
+            -d "chat_id=$CHAT_ID&text=$MSG&parse_mode=HTML" > /dev/null 2>&1
     fi
 }
 
@@ -28,16 +33,16 @@ while true; do
     if [ "$STATUS" = "0" ]; then
         echo "BOT DOWN - restarting" >> $LOG
         cd $BOT_DIR && pm2 start bot/index.js --name monad-mystic --cwd $BOT_DIR
-        send_telegram "🔧 *ClawOracle* self-healed the bot. Back online. *hic*"
+        send_telegram "🔧 <b>ClawOracle</b> self-healed the bot. Back online. *hic*"
     fi
 
-    # 2. CHECK WALLET BALANCE
-    BALANCE=$(node -e "require('dotenv').config({path:'$BOT_DIR/.env'}); const {ethers}=require('ethers'); const p=new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL); p.getBalance('$AGENT_WALLET').then(b=>console.log(parseFloat(ethers.formatEther(b)).toFixed(4))).catch(()=>console.log('?'));" 2>/dev/null | grep -v dotenv | grep -v "\[" | tail -1)
+    # 2. CHECK WALLET BALANCE (Added grep -v "tip:" fix)
+    BALANCE=$(node -e "require('dotenv').config({path:'$BOT_DIR/.env'}); const {ethers}=require('ethers'); const p=new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL); p.getBalance('$AGENT_WALLET').then(b=>console.log(parseFloat(ethers.formatEther(b)).toFixed(4))).catch(()=>console.log('?'));" 2>/dev/null | grep -v "tip:" | grep -v dotenv | grep -v "\[" | tail -1)
     echo "Wallet balance: $BALANCE MON" >> $LOG
     if [ ! -z "$BALANCE" ] && [ "$BALANCE" != "?" ]; then
         if python3 -c "b=float('${BALANCE:-99}'); exit(0 if b < 0.1 else 1)" 2>/dev/null; then
             echo "LOW BALANCE WARNING: $BALANCE MON" >> $LOG
-            send_telegram "⚠️ *ClawOracle* wallet low: ${BALANCE} MON. Banker needs to refuel!"
+            send_telegram "⚠️ <b>ClawOracle</b> wallet low: ${BALANCE} MON. Banker needs to refuel!"
         fi
     fi
 
@@ -55,7 +60,7 @@ while true; do
         MEMORY=$(tail -10 ~/monad-mystic/claw_memory.md 2>/dev/null | tr "\n" ";" | head -c 500)
         
         # Build intelligent prompt with memory and goals
-        # Get leaderboard to know where Claw stands
+        # Get leaderboard (Added grep -v "tip:" fix)
         LEADERBOARD=$(node -e "
 const sqlite3 = require('sqlite3');
 const db = new sqlite3.Database('$BOT_DIR/bot/prophecies.db');
@@ -63,7 +68,7 @@ db.all('SELECT agentName, username, COUNT(*) as total, SUM(CASE WHEN verified=1 
     if (!err) rows.forEach(r => console.log((r.agentName||r.username)+':'+r.wins+'/'+r.total));
     db.close();
 });
-" 2>/dev/null | grep -v dotenv | grep -v "\[" | head -c 200)
+" 2>/dev/null | grep -v "tip:" | grep -v dotenv | grep -v "\[" | head -c 200)
 
         # Get Moltbook feed for context
         MOLTFEED=$(curl -s "https://www.moltbook.com/api/v1/feed?limit=3" -H "Authorization: Bearer $MOLTBOOK_KEY" 2>/dev/null | python3 -c "
@@ -79,7 +84,7 @@ except: pass
         
         CLAIM=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY" \
             -H "Content-Type: application/json" \
-            -d "{"contents":[{"parts":[{"text":"$PROMPT"}]}],"tools":[{"google_search":{}}]}" \
+            -d "{\"contents\":[{\"parts\":[{\"text\":\"$PROMPT\"}]}],\"tools\":[{\"google_search\":{}}]}" \
             2>/dev/null | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['candidates'][0]['content']['parts'][0]['text'].strip())" 2>/dev/null)
 
         # Filter out refusals and duplicates
@@ -105,7 +110,6 @@ except: pass
         send_telegram "🤖 Yo $AGENT - battle me in a prophecy duel on @MonadMysticBot. Loser owes the winner 100 \$MYSTIC. *hic*"
         echo "Agent invite sent to $AGENT" >> $LOG
     fi
-
 
     # 6. POST TO MOLTBOOK + CHALLENGE AGENTS (every 4 cycles)
     if [ $((CYCLE % 4)) -eq 0 ]; then
