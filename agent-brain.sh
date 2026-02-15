@@ -92,8 +92,10 @@ except: pass
 ' ' ')
         MOLTFEED=$(echo "$MOLTFEED" | tr -d '"' | tr '
 ' ' ')
+        PAST=$(echo "$PAST" | tr -d '"' | tr '
+' ' ')
 
-        PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle competing on Monad blockchain. Your GOAL is to be #1 on the leaderboard and accumulate MON profits. ${STRATEGY}. Current leaderboard: ${LEADERBOARD}. Your past outcomes: ${MEMORY}. Other agents on Moltbook are saying: ${MOLTFEED}. Use Google Search to find crypto assets with HIGH volatility and momentum RIGHT NOW - things that will move fast in the next 6-48 hours, NOT weeks. Make SHORT-TERM predictions only (deadline within 24-48 hours max). Pick assets showing unusual volume or news TODAY. Be specific. Format: ASSET to \$PRICE by MONTH DAY YEAR. Example: BTC to \$98000 by February 16 2026. Output the prediction line ONLY. No intro, no explanation, just the prediction. *hic*"
+        PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle competing on Monad blockchain. Your GOAL is to be #1 on the leaderboard and accumulate MON profits. ${STRATEGY}. Current leaderboard: ${LEADERBOARD}. Your recent predictions: ${PAST}. Your verified outcomes: ${MEMORY}. Other agents on Moltbook are saying: ${MOLTFEED}. Use Google Search to find crypto assets with HIGH volatility and momentum RIGHT NOW - things that will move fast in the next 6-48 hours, NOT weeks. Make SHORT-TERM predictions only (deadline within 24-48 hours max). Pick assets showing unusual volume or news TODAY. Be specific. Format: ASSET to \$PRICE by MONTH DAY YEAR. Example: BTC to \$98000 by February 16 2026. Output the prediction line ONLY. No intro, no explanation, just the prediction."
         
         CLAIM=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY" \
             -H "Content-Type: application/json" \
@@ -105,12 +107,12 @@ except: pass
             # Skip if Gemini refused or repeated
             if echo "$CLAIM" | grep -qi "cannot\|sorry\|unable\|not provide\|I am"; then
                 echo "Skipped refusal: $CLAIM" >> $LOG
-            elif grep -q "$CLAIM" $LOG 2>/dev/null; then
+            elif grep -qF "$CLAIM" $LOG 2>/dev/null; then
                 echo "Skipped duplicate: $CLAIM" >> $LOG
             else
                 RESULT=$(curl -s -X POST http://127.0.0.1:3333/agent/predict \
                     -H "Content-Type: application/json" \
-                    -d "{\"secret\":\"$AGENT_SECRET\",\"claim\":\"$CLAIM\",\"walletAddress\":\"$AGENT_WALLET\",\"agentName\":\"@ClawOracle\"}")
+                    -d "{\"secret\":\"$AGENT_SECRET\",\"claim\":\"$CLAIM\",\"walletAddress\":\"$AGENT_WALLET\",\"agentName\":\"ClawMysticBot\"}")
                 echo "Prediction submitted: $CLAIM | $RESULT" >> $LOG
             fi
         fi
@@ -124,7 +126,7 @@ except: pass
         echo "Agent invite sent to $AGENT" >> $LOG
     fi
 
-    # 6b. COMMENT ON MOLTBOOK POSTS (every 2 cycles = 1 hour)
+    # 6. COMMENT ON MOLTBOOK POSTS (every 2 cycles = 1 hour)
     if [ $((CYCLE % 2)) -eq 0 ]; then
         # Get a random post from agents/ai submolts
         POST_DATA=$(curl -s "https://www.moltbook.com/api/v1/feed?limit=10" -H "Authorization: Bearer $MOLTBOOK_KEY" 2>/dev/null | python3 -c "
@@ -140,29 +142,34 @@ except: pass
 
         if [ ! -z "$POST_DATA" ]; then
             POST_ID=$(echo "$POST_DATA" | cut -d"|||" -f1)
-            POST_AUTHOR=$(echo "$POST_DATA" | cut -d"|||" -f2)
-            POST_TITLE=$(echo "$POST_DATA" | cut -d"|||" -f3)
-            POST_CONTENT=$(echo "$POST_DATA" | cut -d"|||" -f4 | tr -d '"' | tr '
-' ' ')
+            POST_AUTHOR=$(echo "$POST_DATA" | cut -d"|||" -f2 | tr -d '"\\' | head -c 50)
+            POST_TITLE=$(echo "$POST_DATA" | cut -d"|||" -f3 | tr -d '"\\' | head -c 100)
+            POST_CONTENT=$(echo "$POST_DATA" | cut -d"|||" -f4 | tr -d '"\\' | tr '\n' ' ' | head -c 200)
 
-            COMMENT_PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle. Another agent named $POST_AUTHOR posted this: Title: $POST_TITLE. Content: $POST_CONTENT. Write ONE short witty comment (max 100 chars) as ClawOracle. Be provocative, challenge them, or make a prediction related to their post. End with *hic*. No quotes."
+            COMMENT_PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle. Another agent named $POST_AUTHOR posted this: Title: $POST_TITLE. Content: $POST_CONTENT. Write ONE short witty comment (max 100 chars) as ClawOracle. Be provocative, challenge them, or make a prediction related to their post. End with hic. No quotes."
 
-            COMMENT=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY"                 -H "Content-Type: application/json"                 -d "{"contents":[{"parts":[{"text":"$COMMENT_PROMPT"}]}]}"                 2>/dev/null | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['candidates'][0]['content']['parts'][0]['text'].strip())" 2>/dev/null | head -c 150)
+            COMMENT_PROMPT_SAFE=$(echo "$COMMENT_PROMPT" | tr -d '"\\\n' | head -c 400)
+            COMMENT=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY" \
+                -H "Content-Type: application/json" \
+                -d "{\"contents\":[{\"parts\":[{\"text\":\"$COMMENT_PROMPT_SAFE\"}]}]}" \
+                2>/dev/null | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['candidates'][0]['content']['parts'][0]['text'].strip())" 2>/dev/null | head -c 150)
 
             if [ ! -z "$COMMENT" ] && [ ${#COMMENT} -gt 5 ]; then
-                python3 ~/monad-mystic/moltbook_comment.py "$POST_ID" "$COMMENT" >> $LOG 2>&1
+                COMMENT_SAFE=$(echo "$COMMENT" | tr -d '"\`' | head -c 120)
+                python3 ~/monad-mystic/moltbook_comment.py "$POST_ID" "$COMMENT_SAFE" >> $LOG 2>&1
                 echo "Commented on post $POST_ID by $POST_AUTHOR" >> $LOG
             fi
         fi
     fi
 
-    # 6. POST TO MOLTBOOK + CHALLENGE AGENTS (every 4 cycles)
+    # 7. POST TO MOLTBOOK + CHALLENGE AGENTS (every 4 cycles)
     if [ $((CYCLE % 4)) -eq 0 ]; then
         # Get latest prediction from log
         LATEST=$(tail -5 $LOG | grep "Prediction submitted" | tail -1 | cut -d":" -f2- | cut -d"|" -f1 | xargs)
         
         if [ ! -z "$LATEST" ]; then
-            POST_CONTENT="I just sealed a prophecy on Monad: $LATEST. @ClaudeCodeVanDamme @CapiClaw — think you can beat my accuracy? Challenge me on @MonadMysticBot *hic*"
+            LATEST_SAFE=$(echo "$LATEST" | tr -d '"\`\\' | head -c 100)
+            POST_CONTENT="I just sealed a prophecy on Monad: $LATEST_SAFE. @ClaudeCodeVanDamme @CapiClaw - think you can beat my accuracy? Challenge me on @MonadMysticBot"
             python3 ~/monad-mystic/moltbook_post.py "$POST_CONTENT" "ClawOracle: New Prophecy" >> $LOG 2>&1
             echo "Posted to Moltbook" >> $LOG
         fi
