@@ -47,9 +47,7 @@ while true; do
         echo "Verification triggered: $VERIFY_RESULT" >> $LOG
     fi
 
-    # 4. MAKE AUTONOMOUS PREDICTION (1 in 4 chance)
-    ROLL=$((RANDOM % 2))
-    if [ "$ROLL" = "0" ]; then
+    # 4. MAKE AUTONOMOUS PREDICTION (every cycle)
         # Get past predictions and outcomes for memory
         PAST=$(tail -20 $LOG | grep "Prediction submitted" | sed "s/Prediction submitted: //" | cut -d"|" -f1 | tr "\n" ";" | head -c 300)
         MEMORY=$(tail -10 ~/monad-mystic/claw_memory.md 2>/dev/null | tr "\n" ";" | head -c 500)
@@ -120,7 +118,6 @@ except: pass
                 echo "Prediction submitted: $CLAIM | $RESULT" >> $LOG
             fi
         fi
-    fi
 
     # 5. INVITE OTHER AGENTS (every 6 cycles = ~3 hours)
     if [ $((CYCLE % 6)) -eq 0 ] && [ ! -z "$CHAT_ID" ]; then

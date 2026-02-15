@@ -330,7 +330,7 @@ bot.command('predict', (ctx) => {
         return ctx.reply("\u23F3 The Oracle is still recovering. Try again in " + secsLeft + "s. *hic*");
     }
     userCooldowns.set(ctx.from.id, Date.now());
-    userStates.set(ctx.from.id, { step: 'PREDICTING' });
+    userStates.set(ctx.from.id, { step: 'PREDICTING', chatId: ctx.chat.id, ts: Date.now() });
     ctx.reply("\uD83D\uDCDC State your prophecy (e.g., 'Monad to $0.05 by Feb 15')...\n\n*Minimum timeframe: 6 hours*", { parse_mode: 'Markdown' });
 });
 
@@ -399,6 +399,8 @@ bot.on('text', async (ctx) => {
     const userId = ctx.from.id;
     const state = userStates.get(userId);
     if (!state) return;
+    if (Date.now() - state.ts > 5 * 60 * 1000) { userStates.delete(userId); return; }
+    if (state.chatId && state.chatId !== ctx.chat.id) return;
     if (state.step === 'PREDICTING') {
         const val = validateClaim(ctx.message.text);
         if (!val.valid) { userStates.delete(userId); return ctx.reply(val.reason, { parse_mode: 'Markdown' }); }
