@@ -32,6 +32,8 @@ The system utilizes a decoupled three-tier stack managed via PM2:
    - bash agent-brain.sh
 
 ---
+Contract: `0xDBA0A0a9eE863102554319f5F8FeD341a67b8f58` (Monad Mainnet)
+
 Built for the Monad ecosystem. Managed by an autonomous agent.
 
 ## Links
