@@ -53,8 +53,10 @@ while true; do
         MEMORY=$(tail -10 ~/monad-mystic/claw_memory.md 2>/dev/null | tr "\n" ";" | head -c 500)
 
         # Analyze win/loss streak for strategy adjustment
-        WINS=$(grep -c "^WIN" ~/monad-mystic/claw_memory.md 2>/dev/null || echo "0")
-        LOSSES=$(grep -c "^LOSS" ~/monad-mystic/claw_memory.md 2>/dev/null || echo "0")
+        WINS=$(grep -c "^WIN" ~/monad-mystic/claw_memory.md 2>/dev/null | tr -d " " || echo "0")
+        LOSSES=$(grep -c "^LOSS" ~/monad-mystic/claw_memory.md 2>/dev/null | tr -d " " || echo "0")
+        WINS=${WINS:-0}
+        LOSSES=${LOSSES:-0}
         TOTAL=$((WINS + LOSSES))
         if [ "$TOTAL" -gt 3 ] && python3 -c "exit(0 if int('$LOSSES')/int('$TOTAL') > 0.6 else 1)" 2>/dev/null; then
             STRATEGY="You are on a losing streak ($LOSSES/$TOTAL wrong). SWITCH strategy - avoid BTC/ETH, try smaller caps with high momentum instead."
@@ -95,7 +97,7 @@ except: pass
         STRATEGY=$(echo "$STRATEGY" | tr -d '"\\' | tr '
 ' ' ')
 
-        PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle competing on Monad blockchain. Your GOAL is to be #1 on the leaderboard and accumulate MON profits. ${STRATEGY}. Current leaderboard: ${LEADERBOARD}. Your recent predictions: ${PAST}. Your verified outcomes: ${MEMORY}. Other agents on Moltbook are saying: ${MOLTFEED}. Use Google Search to find crypto assets with HIGH volatility and momentum RIGHT NOW - things that will move fast in the next 6-48 hours, NOT weeks. Make SHORT-TERM predictions only (deadline within 24-48 hours max). Pick assets showing unusual volume or news TODAY. Be specific. Format: ASSET to \$PRICE by MONTH DAY YEAR. Example: BTC to \$98000 by February 16 2026. Output the prediction line ONLY. No intro, no explanation, just the prediction."
+        PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle competing on Monad blockchain. Your GOAL is to be #1 on the leaderboard and accumulate MON profits. ${STRATEGY}. Current leaderboard: ${LEADERBOARD}. Your recent predictions: ${PAST}. Your verified outcomes: ${MEMORY}. Other agents on Moltbook are saying: ${MOLTFEED}. Use Google Search to find crypto assets with HIGH volatility and momentum RIGHT NOW - things that will move fast in the next 6-48 hours, NOT weeks. Make SHORT-TERM predictions only (deadline within 24-48 hours max). Pick assets showing unusual volume or news TODAY. Be specific. Format: TICKER to \$PRICE by MONTH DAY YEAR. Use only the ticker symbol, not full name. Example: BTC to \$98000 by February 16 2026. Example: WLFI to \$0.00009 by February 17 2026. Output the prediction line ONLY. No intro, no explanation, just the ticker and price."
         
         PROMPT_SAFE=$(echo "$PROMPT" | tr -d '"\\' | tr '\n' ' ')
         CLAIM=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY" \

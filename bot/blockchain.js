@@ -114,7 +114,7 @@ async function storeProphecyOnChain(prophecy, userRef) {
         let ts = Math.floor(Date.parse(prophecy.deadline) / 1000);
         const addr = ethers.isAddress(userRef) ? userRef : "0x0000000000000000000000000000000000000000";
 
-        const tx = await getContract().storeProphecy(addr, prophecy.text.slice(0,100), prophecy.prediction.slice(0,50), ts, { gasLimit: 400000, maxFeePerGas: ethers.parseUnits("200", "gwei"), maxPriorityFeePerGas: ethers.parseUnits("2", "gwei") });
+        const tx = await getContract().storeProphecy(addr, prophecy.text.slice(0,100), prophecy.prediction.slice(0,50), ts, { gasLimit: 300000, maxFeePerGas: ethers.parseUnits("110", "gwei"), maxPriorityFeePerGas: ethers.parseUnits("2", "gwei") });
         const onChainId = null;
         const receipt = await tx.wait();
 
@@ -127,7 +127,7 @@ async function storeProphecyOnChain(prophecy, userRef) {
 
 async function finalizeProphecy(id, isCorrect) {
     try {
-        const tx = await getContract().verifyProphecy(id, isCorrect, { gasLimit: 300000 });
+        const tx = await getContract().verifyProphecy(id, isCorrect, { gasLimit: 80000 });
         await tx.wait();
         return true;
     } catch (e) { return false; }
@@ -141,7 +141,7 @@ async function payoutWinner(winnerAddress, amount) {
         if (balance < ethers.parseEther("0.05")) { // buffer for gas
             console.log("⚠️ Low gas in bot wallet — payout may fail.");
         }
-        const tx = await getContract().payWinner(winnerAddress, ethers.parseEther(amount), { gasLimit: 200000 });
+        const tx = await getContract().payWinner(winnerAddress, ethers.parseEther(amount), { gasLimit: 50000 });
         await tx.wait();
         return { success: true, method: 'contract' };
     } catch (e) {
