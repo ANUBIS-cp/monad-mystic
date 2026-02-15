@@ -8,7 +8,7 @@ const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 
 const provider = new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL);
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN, { handlerTimeout: 300000 });
 const userStates = new Map();
 const dbPath = 'prophecies.db';
 const cacheFile = 'prophecies_cache.json';
@@ -595,7 +595,8 @@ bot.on('text', async (ctx) => {
         }
 
         ctx.reply("\uD83C\uDF00 Verifying your sacrifice on the Monad chain... *hic*");
-        const payResult = await verifyPayment(txHash);
+        let payResult;
+        try { payResult = await verifyPayment(txHash); } catch(e) { userStates.delete(userId); return ctx.reply('❌ *NETWORK ERROR!* Monad RPC timed out. Please try again in 30 seconds.', { parse_mode: 'Markdown' }); }
 
         if (!payResult.valid) {
             userStates.delete(userId);
@@ -617,7 +618,7 @@ bot.on('text', async (ctx) => {
         const isPremium = await isPremiumUser(userWallet);
         if (isPremium) ctx.reply("\uD83D\uDD2E Premium prophet detected! $MYSTIC holders get priority. *hic*");
 
-        distributeFeeShare(ethers.parseEther("0.01")).catch(e => console.error("Fee share error:", e.message));
+        //distributeFeeShare(ethers.parseEther("0.01")).catch(e => console.error("Fee share error:", e.message));
 
         ctx.reply("\u2728 Sacrifice accepted! Summoning the spirits...");
 

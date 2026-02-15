@@ -36,6 +36,12 @@ const addUsedHash = (hash) => {
 };
 
 async function verifyPayment(txHash) {
+    return Promise.race([
+        verifyPaymentInternal(txHash),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('RPC timeout')), 25000))
+    ]);
+}
+async function verifyPaymentInternal(txHash) {
     // (unchanged from previous hardened version - keeps all TX security checks)
     const normalizedHash = txHash.toLowerCase().trim();
 

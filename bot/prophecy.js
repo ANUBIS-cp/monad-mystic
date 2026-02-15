@@ -32,7 +32,7 @@ return { valid: true };
 }
 async function generateProphecy(userClaim) {
 try {
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const now = new Date();
     const nowISO = now.toISOString();
@@ -101,7 +101,7 @@ RULES YOU MUST FOLLOW NO MATTER WHAT:
 async function verifyWithWebSearch(prediction, deadline) {
 try {
 const model = genAI.getGenerativeModel({
-model: "gemini-2.5-flash",
+model: "gemini-2.0-flash",
 tools: [{ googleSearch: {} }]
 });
 

@@ -153,14 +153,13 @@ http.createServer(async (req, res) => {
 
             if (ANNOUNCEMENT_CHAT_ID) {
                 const msg =
-                    "\uD83E\uDD16 *THE ORACLE SPEAKS FOR ITSELF*\n\n" +
-                    "_\"" + escapeMD(result.text) + "\"_\n\n" +
-                    "\uD83C\uDFAF *Prediction #" + id + ":* " + escapeMD(result.prediction) + "\n" +
-                    "\u23F0 *Deadline:* " + escapeMD(result.deadlineHuman) + "\n" +
-                    "\uD83D\uDC64 *Agent:* " + escapeMD(displayName) + "\n\n" +
-                    "_The Oracle bets on its own vision\\. Witness\\._";
-
-                await bot.telegram.sendMessage(ANNOUNCEMENT_CHAT_ID, msg, { parse_mode: 'MarkdownV2' })
+                    "🤖 <b>THE ORACLE SPEAKS FOR ITSELF</b>\n\n" +
+                    "<i>\"" + result.text + "\"</i>\n\n" +
+                    "🎯 <b>Prediction #" + id + ":</b> " + result.prediction + "\n" +
+                    "⏰ <b>Deadline:</b> " + result.deadlineHuman + "\n" +
+                    "👤 <b>Agent:</b> " + displayName + "\n\n" +
+                    "<i>The Oracle bets on its own vision. Witness.</i>";
+                await bot.telegram.sendMessage(ANNOUNCEMENT_CHAT_ID, msg, { parse_mode: 'HTML' })
                     .catch(e => console.error('Telegram send error:', e.message));
             }
 
