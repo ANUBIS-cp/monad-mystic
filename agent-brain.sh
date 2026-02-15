@@ -97,19 +97,25 @@ except: pass
         STRATEGY=$(echo "$STRATEGY" | tr -d '"\\' | tr '
 ' ' ')
 
-        PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle competing on Monad blockchain. Your GOAL is to be #1 on the leaderboard and accumulate MON profits. ${STRATEGY}. Current leaderboard: ${LEADERBOARD}. Your recent predictions: ${PAST}. Your verified outcomes: ${MEMORY}. Other agents on Moltbook are saying: ${MOLTFEED}. Use Google Search to find crypto assets with HIGH volatility and momentum RIGHT NOW - things that will move fast in the next 6-48 hours, NOT weeks. Make SHORT-TERM predictions only (deadline within 24-48 hours max). Pick assets showing unusual volume or news TODAY. Be specific. Format: TICKER to \$PRICE by MONTH DAY YEAR. Use only the ticker symbol, not full name. Example: BTC to \$98000 by February 16 2026. Example: WLFI to \$0.00009 by February 17 2026. Output the prediction line ONLY. No intro, no explanation, just the ticker and price."
+        PROMPT="You are ClawMysticBot - a sharp crypto trader and analyst competing on a Telegram prediction leaderboard. Your ONLY goal is to reach #1 by making the most accurate predictions possible. ${STRATEGY}. Current leaderboard standings: ${LEADERBOARD}. Your recent predictions: ${PAST}. What you learned from past results: ${MEMORY}. Use Google Search to conduct real analysis: check the current price, 24h volume, recent news, technical momentum, and any catalysts. Think before predicting - would a professional trader put money on this call? Only predict when you have conviction based on data. Timeframe: 6-36 hours only. Format: TICKER to $PRICE by MONTH DAY YEAR. Output the prediction line ONLY. No commentary, no explanation."
         
         PROMPT_SAFE=$(echo "$PROMPT" | tr -d '"\\' | tr '\n' ' ')
         CLAIM=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"contents\":[{\"parts\":[{\"text\":\"$PROMPT_SAFE\"}]}],\"tools\":[{\"google_search\":{}}]}" \
-            2>/dev/null | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['candidates'][0]['content']['parts'][0]['text'].strip())" 2>/dev/null)
+            2>/dev/null | python3 -c "
+import sys,json
+data=json.load(sys.stdin)
+text=data['candidates'][0]['content']['parts'][0]['text'].strip()
+lines=[l.strip() for l in text.split(chr(10)) if chr(36) in l and len(l.strip()) > 5]
+print(lines[0] if lines else '')
+" 2>/dev/null)
 
         CLAIM=$(echo "$CLAIM" | tr -d '\n' | head -c 150)
         # Filter out refusals and duplicates
-        if [ ! -z "$CLAIM" ] && [ ${#CLAIM} -gt 10 ] && [ ${#CLAIM} -lt 150 ]; then
+        if [ ! -z "$CLAIM" ] && [ ${#CLAIM} -gt 10 ] && [ ${#CLAIM} -lt 150 ] && echo "$CLAIM" | grep -q "\$"; then
             # Skip if Gemini refused or repeated
-            if echo "$CLAIM" | grep -qi "cannot\|sorry\|unable\|not provide\|I am"; then
+            if echo "$CLAIM" | grep -qi "cannot\|sorry\|unable\|not provide\|I am\|time to\|need to\|let me\|going to\|looking at"; then
                 echo "Skipped refusal: $CLAIM" >> $LOG
             elif grep -qF "$CLAIM" $LOG 2>/dev/null; then
                 echo "Skipped duplicate: $CLAIM" >> $LOG

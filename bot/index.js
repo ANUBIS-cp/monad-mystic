@@ -9,7 +9,7 @@ const sqlite3 = require('sqlite3').verbose();
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN, { handlerTimeout: 300000 });
 const userStates = new Map();
-const dbPath = 'prophecies.db';
+const dbPath = '/home/rayzelnoblesse5/monad-mystic/prophecies.db';
 const cacheFile = 'prophecies_cache.json';
 
 let ANNOUNCEMENT_CHAT_ID = null;

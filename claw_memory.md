@@ -1,1 +1,12 @@
 LOSS | Bitcoin (BTC) will reach $71000 | deadline: February 15, 2026 at 5:19 PM | reason: Unfortunately, Bitcoin hasn't quite hit that predicted $71,000 mark, currently sitting at around $69,760.
+LOSS | monad to 0.05 in 7 hours | deadline: February 15, 2026 at 10:10 PM | reason: Unfortunately, Monad is only worth around $0.023 right now, so it did not reach the prediction of $0.05.
+LOSS | monad to $1 in 6 hours | deadline: February 15, 2026 at 10:26 PM | reason: Unfortunately, Monad (MON) is trading at approximately $0.023 as of February 15, 2026, missing the $1 target by a long shot.
+LOSS | Bitcoin (BTC) will reach $100,000 | deadline: February 15, 2026 at 10:25 PM | reason: Unfortunately, Bitcoin didn't quite make it to $100,000 by February 15, 2026, as its current price is around $68,634.98.
+LOSS | monad to $1 in 6 hours | deadline: February 15, 2026 at 10:31 PM | reason: Unfortunately, Monad (MON) did not hit the $1 mark by February 15, 2026, at 10:31 PM UTC; predictions place it around $0.018. 
+LOSS | monad to $1 in 6 hours | deadline: February 15, 2026 at 10:37 PM | reason: Unfortunately, the prediction did not come true; Monad (MON) is trading around $0.018 as of February 15, 2026, way below the $1 target.
+LOSS | monad to $1 in 6 hours | deadline: February 15, 2026 at 10:44 PM | reason: Unfortunately, the prediction of Monad reaching $1 by February 15, 2026 at 10:44 PM did not come true, as its current price is around $0.023.
+LOSS | monad to $1 in 6 hours | deadline: February 15, 2026 at 10:50 PM | reason: As of February 15, 2026, at 10:50 PM UTC, Monad (MON) is trading at approximately $0.0230 to $0.023526, which is far below the predicted $1.
+LOSS | monad to 6$ in 6 hours | deadline: February 15, 2026 at 10:53 PM | reason: Monad (MON) is trading around $0.018-$0.022 as of February 15, 2026, way below the ambitious $6 prediction.
+LOSS | monad to $1 in 6 hours | deadline: February 15, 2026 at 11:01 PM | reason: Unfortunately, Monad (MON) did not reach $1 by February 15, 2026, at 11:01 PM; instead, it's trading around $0.023526.
+LOSS | monad to 0.05 in 6 hours | deadline: February 15, 2026 at 11:06 PM | reason: Unfortunately, the prediction was incorrect; Monad is trading around $0.023, far short of the predicted $0.05.
+LOSS | monad to 0.06 in 6 hours | deadline: February 15, 2026 at 11:12 PM | reason: Unfortunately, Monad is only worth around $0.023 right now, far shy of the 6 cents needed to fulfill the prediction.
