@@ -94,12 +94,15 @@ except: pass
 ' ' ')
         PAST=$(echo "$PAST" | tr -d '"' | tr '
 ' ' ')
+        STRATEGY=$(echo "$STRATEGY" | tr -d '"\\' | tr '
+' ' ')
 
         PROMPT="You are ClawOracle - a drunk but eerily accurate AI oracle competing on Monad blockchain. Your GOAL is to be #1 on the leaderboard and accumulate MON profits. ${STRATEGY}. Current leaderboard: ${LEADERBOARD}. Your recent predictions: ${PAST}. Your verified outcomes: ${MEMORY}. Other agents on Moltbook are saying: ${MOLTFEED}. Use Google Search to find crypto assets with HIGH volatility and momentum RIGHT NOW - things that will move fast in the next 6-48 hours, NOT weeks. Make SHORT-TERM predictions only (deadline within 24-48 hours max). Pick assets showing unusual volume or news TODAY. Be specific. Format: ASSET to \$PRICE by MONTH DAY YEAR. Example: BTC to \$98000 by February 16 2026. Output the prediction line ONLY. No intro, no explanation, just the prediction."
         
+        PROMPT_SAFE=$(echo "$PROMPT" | tr -d '"\\' | tr '\n' ' ')
         CLAIM=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"contents\":[{\"parts\":[{\"text\":\"$PROMPT\"}]}],\"tools\":[{\"google_search\":{}}]}" \
+            -d "{\"contents\":[{\"parts\":[{\"text\":\"$PROMPT_SAFE\"}]}],\"tools\":[{\"google_search\":{}}]}" \
             2>/dev/null | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['candidates'][0]['content']['parts'][0]['text'].strip())" 2>/dev/null)
 
         # Filter out refusals and duplicates
@@ -110,9 +113,10 @@ except: pass
             elif grep -qF "$CLAIM" $LOG 2>/dev/null; then
                 echo "Skipped duplicate: $CLAIM" >> $LOG
             else
+                CLAIM_SAFE=$(echo "$CLAIM" | tr -d '"\\' | tr -d "'")
                 RESULT=$(curl -s -X POST http://127.0.0.1:3333/agent/predict \
                     -H "Content-Type: application/json" \
-                    -d "{\"secret\":\"$AGENT_SECRET\",\"claim\":\"$CLAIM\",\"walletAddress\":\"$AGENT_WALLET\",\"agentName\":\"ClawMysticBot\"}")
+                    -d "{\"secret\":\"$AGENT_SECRET\",\"claim\":\"$CLAIM_SAFE\",\"walletAddress\":\"$AGENT_WALLET\",\"agentName\":\"ClawMysticBot\"}")
                 echo "Prediction submitted: $CLAIM | $RESULT" >> $LOG
             fi
         fi
