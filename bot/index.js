@@ -7,7 +7,6 @@ const { verifyPayment, storeProphecyOnChain, finalizeProphecy, payoutWinner, wal
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 
-const provider = new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL);
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN, { handlerTimeout: 300000 });
 const userStates = new Map();
 const dbPath = 'prophecies.db';
@@ -39,17 +38,6 @@ async function isPremiumUser(userWallet) {
     } catch(e) {
         console.error("Token balance check failed:", e.message);
         return false;
-    }
-}
-
-async function distributeFeeShare(amount) {
-    const share = amount / 10n;
-    try {
-        const tx = await wallet.sendTransaction({ to: REWARD_POOL_ADDRESS, value: share, gasLimit: 50000n });
-        await tx.wait();
-        console.log("Distributed " + ethers.formatEther(share) + " MON to reward pool");
-    } catch(e) {
-        console.error("Fee share failed:", e.message);
     }
 }
 
@@ -127,8 +115,8 @@ function setAnnouncementChat(ctx) {
     }
 }
 
-function buildLeaderboard() {
-    const db = getDBSync();
+async function buildLeaderboard() {
+    const db = await getDB();
     const stats = {};
     for (const p of db) {
         const key = p.username || (p.userWallet ? p.userWallet.slice(0, 8) : 'Unknown');
@@ -172,12 +160,11 @@ async function runVerificationCycle(currentChatId, silent) {
             await new Promise(r => setTimeout(r, 3000));
             const result2 = await verifyWithWebSearch(p.prediction, p.deadlineHuman);
             const consensusCorrect = (result1.isCorrect === result2.isCorrect) ? result1.isCorrect : false;
-            const finalResult = result1;
+            const finalResult = { ...result1, isCorrect: consensusCorrect };
 
             p.verified = true;
             // Write to Claw memory if this was agent prediction
-            if (p.username === '@ClawOracle' || p.agentName === '@ClawOracle') {
-                const fs = require('fs');
+            if (p.username === '@ClawOracle' || (p.userWallet && p.userWallet.toLowerCase() === '0xece8b89d315aebad289fd7759c9446f948eca2f2')) {
                 const memoryLine = `${finalResult.isCorrect ? 'WIN' : 'LOSS'} | ${p.prediction} | deadline: ${p.deadlineHuman} | reason: ${finalResult.explanation}\n`;
                 fs.appendFileSync('/home/rayzelnoblesse5/monad-mystic/claw_memory.md', memoryLine);
             }
@@ -192,7 +179,7 @@ async function runVerificationCycle(currentChatId, silent) {
                 const payoutResult = await payoutWinner(p.userWallet, payoutAmount);
                 p.payoutMethod = payoutResult.method;
                 p.payoutSent = payoutResult.success;
-                paidMsg = payoutResult.success ? "\n\n\uD83D\uDCB8 *0.04 MON sent to " + p.userWallet.slice(0,10) + "...*" : "\n\n\u26A0\uFE0F Payout failed - logged for review";
+                paidMsg = payoutResult.success ? "\n\n\uD83D\uDCB8 *" + payoutAmount + " MON sent to " + p.userWallet.slice(0,10) + "...*" : "\n\n\u26A0\uFE0F Payout failed - logged for review";
                 if (!payoutResult.success) p.payoutFailed = true;
             }
 
@@ -286,7 +273,7 @@ async function checkProphecyById(id, ctx) {
         await new Promise(r => setTimeout(r, 3000));
         const result2 = await verifyWithWebSearch(p.prediction, p.deadlineHuman);
         const consensusCorrect = (result1.isCorrect === result2.isCorrect) ? result1.isCorrect : false;
-        const finalResult = result1;
+        const finalResult = { ...result1, isCorrect: consensusCorrect };
 
         p.verified = true;
         p.verificationResult = finalResult;
@@ -299,7 +286,7 @@ async function checkProphecyById(id, ctx) {
                 const payoutResult = await payoutWinner(p.userWallet, payoutAmount);
             p.payoutMethod = payoutResult.method;
             p.payoutSent = payoutResult.success;
-            paidMsg = payoutResult.success ? "\n\n\uD83D\uDCB8 *0.04 MON sent!*" : "\n\n\u26A0\uFE0F Payout failed";
+            paidMsg = payoutResult.success ? "\n\n\uD83D\uDCB8 *" + payoutAmount + " MON sent!*" : "\n\n\u26A0\uFE0F Payout failed";
             if (!payoutResult.success) p.payoutFailed = true;
         }
         await saveDB(db);
@@ -347,10 +334,10 @@ bot.command('predict', (ctx) => {
     ctx.reply("\uD83D\uDCDC State your prophecy (e.g., 'Monad to $0.05 by Feb 15')...\n\n*Minimum timeframe: 6 hours*", { parse_mode: 'Markdown' });
 });
 
-bot.command('leaderboard', (ctx) => {
+bot.command('leaderboard', async (ctx) => {
     setAnnouncementChat(ctx);
-    const board = buildLeaderboard();
-    const allRows = getDBSync();
+    const board = await buildLeaderboard();
+    const allRows = await getDB();
     if (board.length === 0) return ctx.reply("\uD83D\uDCED No prophecies yet. Be the first with /predict!");
     const medals = ['\uD83E\uDD47','\uD83E\uDD48','\uD83E\uDD49','4\uFE0F\u20E3','5\uFE0F\u20E3','6\uFE0F\u20E3','7\uFE0F\u20E3','8\uFE0F\u20E3','9\uFE0F\u20E3','\uD83D\uDD1F'];
     let msg = "\uD83C\uDFC6 *PROPHET LEADERBOARD*\n_Total prophecies sealed: " + allRows.length + "_\n\n";
@@ -418,7 +405,7 @@ bot.on('text', async (ctx) => {
         state.claim = ctx.message.text;
         state.step = 'PAYMENT_CHOICE';
         return ctx.reply(
-            "\uD83D\uDCB0 *HOW DO YOU WANT TO PAY?*\n\n\uD83D\uDC8E Hold 10,000\\+ [$MYSTIC](https://nad.fun/tokens/0x05463f12b2Ca7654D8cB89873eC0cB8b2BFA7777) \u2192 FREE prediction \\+ 0\\.07 MON if correct\n\uD83D\uDCB3 No \\$MYSTIC \u2192 Pay 0\\.01 MON\n\nReply *1* to check $MYSTIC balance\nReply *2* to pay directly",
+            "💰 *HOW DO YOU WANT TO PAY?*\n\n💎 Hold 10,000+ [$MYSTIC](https://nad.fun/tokens/0x05463f12b2Ca7654D8cB89873eC0cB8b2BFA7777) → FREE prediction + 0.07 MON if correct\n💳 No $MYSTIC → Pay 0.01 MON\n\nReply *1* to check $MYSTIC balance\nReply *2* to pay directly",
             { parse_mode: 'Markdown' }
         );
     }
@@ -427,11 +414,13 @@ bot.on('text', async (ctx) => {
         if (choice === '1') {
             state.step = 'WALLET_CHECK';
             return ctx.reply("\uD83D\uDD2E Paste your Monad wallet address to verify your $MYSTIC balance:");
-        } else {
+        } else if (choice === '2') {
             state.step = 'PAYING';
             return ctx.replyWithMarkdown(
                 "\uD83D\uDEF0\uFE0F *SACRIFICE REQUIRED*\n\nSend exactly `0.01 MON` to:\n`" + process.env.CONTRACT_ADDRESS + "`\n\nThen paste your transaction hash here:\n\n\u26A0\uFE0F _Transaction must be within the last 30 minutes_"
             );
+        } else {
+            return ctx.reply("\u274C Reply *1* for $MYSTIC check or *2* to pay directly.", { parse_mode: 'Markdown' });
         }
     }
     if (state.step === 'WALLET_CHECK') {
@@ -480,117 +469,6 @@ bot.on('text', async (ctx) => {
         return ctx.replyWithMarkdown(
             "\uD83D\uDEF0\uFE0F *SACRIFICE REQUIRED*\n\nYou need 10,000 $MYSTIC for free predictions.\n\nSend exactly `0.01 MON` to:\n`" + process.env.CONTRACT_ADDRESS + "`\n\nThen paste your transaction hash here:\n\n\u26A0\uFE0F _Transaction must be within the last 30 minutes_"
         );
-    }
-
-    if (state.step === 'FREE_PREDICT') {
-        const userWallet = state.checkedWallet;
-        const username = ctx.from.username ? "@" + ctx.from.username : ctx.from.first_name;
-        ctx.reply("\u2728 Free prophecy incoming! The Oracle bows to $MYSTIC royalty... *hic*");
-        const db = await getDB();
-        const id = db.length > 0 ? Math.max(...db.map(p => p.id)) + 1 : 0;
-        const fallbackDeadline = new Date(Date.now() + 24 * 3600000);
-        const newProphecy = {
-            id, userWallet, username, userId,
-            chatId: ctx.chat.id,
-            prediction: state.claim,
-            deadline: fallbackDeadline.toISOString(),
-            deadlineHuman: fallbackDeadline.toLocaleString('en-US', { month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true }),
-            text: 'Generating...',
-            verified: false, verificationResult: {}, rawVerification: [],
-            timestamp: new Date().toISOString(), paymentTx: 'mystic-free',
-            payoutSent: false, isProcessing: false, payoutFailed: false,
-            payoutMethod: null, onChainId: null, isMysticFree: true
-        };
-        db.push(newProphecy);
-        await saveDB(db);
-        let result;
-        try {
-            result = await generateProphecy(state.claim);
-            newProphecy.prediction = result.prediction;
-            newProphecy.deadline = result.deadline;
-            newProphecy.deadlineHuman = result.deadlineHuman;
-            newProphecy.text = result.text;
-            await saveDB(db);
-        } catch(e) {
-            result = Object.assign({}, newProphecy, { text: "The spirits are troubled... but your free prophecy is recorded, $MYSTIC holder." });
-        }
-        const shareUrl = buildShareUrl(result.prediction, result.deadlineHuman, result.text);
-        const caption =
-            "\uD83D\uDC8E <b>FREE PROPHECY SEALED (#" + id + ") — $MYSTIC HOLDER</b>\n\n" +
-            "<i>\"" + escapeHTML(result.text) + "\"</i>\n\n" +
-            "\uD83C\uDFAF <b>Prediction:</b> " + escapeHTML(result.prediction) + "\n" +
-            "\u23F0 <b>Deadline:</b> " + escapeHTML(result.deadlineHuman) + "\n\n" +
-            "<a href=\"" + shareUrl + "\">\uD83D\uDC26 Share on X</a>\n\n" +
-            "<i>Use /check " + id + " anytime to see status</i>";
-        await ctx.reply(caption, { parse_mode: 'HTML', disable_web_page_preview: true });
-        userStates.delete(userId);
-        return;
-    }
-    if (state.step === 'WALLET_CHECK') {
-        const walletAddr = ctx.message.text.trim();
-        if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddr)) {
-            userStates.delete(userId);
-            return ctx.reply("\u274C Invalid wallet address. Start over with /predict.");
-        }
-        state.checkedWallet = walletAddr;
-        const isPremium = await isPremiumUser(walletAddr);
-        if (isPremium) {
-            state.step = 'FREE_PREDICT';
-            state.isFree = true;
-            return ctx.reply(
-                "\uD83D\uDC8E *$MYSTIC HOLDER DETECTED!*\n\nYou hold 10,000+ $MYSTIC — your prophecy is FREE!\n\n\u2728 Summoning the spirits for free...",
-                { parse_mode: 'Markdown' }
-            );
-        }
-        state.step = 'PAYING';
-        return ctx.replyWithMarkdown(
-            "\uD83D\uDEF0\uFE0F *SACRIFICE REQUIRED*\n\nYou need 10,000 $MYSTIC for free predictions.\n\nSend exactly `0.01 MON` to:\n`" + process.env.CONTRACT_ADDRESS + "`\n\nThen paste your transaction hash here:\n\n\u26A0\uFE0F _Transaction must be within the last 30 minutes_"
-        );
-    }
-
-    if (state.step === 'FREE_PREDICT') {
-        const userWallet = state.checkedWallet;
-        const username = ctx.from.username ? "@" + ctx.from.username : ctx.from.first_name;
-        ctx.reply("\u2728 Free prophecy incoming! The Oracle bows to $MYSTIC royalty... *hic*");
-        const db = await getDB();
-        const id = db.length > 0 ? Math.max(...db.map(p => p.id)) + 1 : 0;
-        const fallbackDeadline = new Date(Date.now() + 24 * 3600000);
-        const newProphecy = {
-            id, userWallet, username, userId,
-            chatId: ctx.chat.id,
-            prediction: state.claim,
-            deadline: fallbackDeadline.toISOString(),
-            deadlineHuman: fallbackDeadline.toLocaleString('en-US', { month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true }),
-            text: 'Generating...',
-            verified: false, verificationResult: {}, rawVerification: [],
-            timestamp: new Date().toISOString(), paymentTx: 'mystic-free',
-            payoutSent: false, isProcessing: false, payoutFailed: false,
-            payoutMethod: null, onChainId: null, isMysticFree: true
-        };
-        db.push(newProphecy);
-        await saveDB(db);
-        let result;
-        try {
-            result = await generateProphecy(state.claim);
-            newProphecy.prediction = result.prediction;
-            newProphecy.deadline = result.deadline;
-            newProphecy.deadlineHuman = result.deadlineHuman;
-            newProphecy.text = result.text;
-            await saveDB(db);
-        } catch(e) {
-            result = Object.assign({}, newProphecy, { text: "The spirits are troubled... but your free prophecy is recorded, $MYSTIC holder." });
-        }
-        const shareUrl = buildShareUrl(result.prediction, result.deadlineHuman, result.text);
-        const caption =
-            "\uD83D\uDC8E <b>FREE PROPHECY SEALED (#" + id + ") — $MYSTIC HOLDER</b>\n\n" +
-            "<i>\"" + escapeHTML(result.text) + "\"</i>\n\n" +
-            "\uD83C\uDFAF <b>Prediction:</b> " + escapeHTML(result.prediction) + "\n" +
-            "\u23F0 <b>Deadline:</b> " + escapeHTML(result.deadlineHuman) + "\n\n" +
-            "<a href=\"" + shareUrl + "\">\uD83D\uDC26 Share on X</a>\n\n" +
-            "<i>Use /check " + id + " anytime to see status</i>";
-        await ctx.reply(caption, { parse_mode: 'HTML', disable_web_page_preview: true });
-        userStates.delete(userId);
-        return;
     }
 
     if (state.step === 'PAYING') {
@@ -686,9 +564,8 @@ bot.on('text', async (ctx) => {
 const startupCleanup = async () => {
     const db = await getDB();
     let cleaned = false;
-    const now = Date.now();
     for (const p of db) {
-        if (p.isProcessing && (now - new Date(p.timestamp).getTime() > 10 * 60 * 1000)) {
+        if (p.isProcessing) {
             p.isProcessing = false; cleaned = true;
             console.log("Cleaned stale flag for #" + p.id);
         }
@@ -715,22 +592,6 @@ setInterval(async () => {
 }, 5 * 60 * 1000);
 
 console.log("\uD83E\uDDE0 Claw AI agent activated - I now own Monad Mystic *hic*");
-
-const agentBrain = async () => {
-    console.log("\uD83E\uDDE0 Claw thinking...");
-    if (Math.random() < 0.25) {
-        const claims = ["Monad to $0.25 by April 2026", "BTC to $150k before summer", "SOL flips ETH this cycle"];
-        console.log("\uD83D\uDD2E Claw prophecy intent: " + claims[Math.floor(Math.random() * claims.length)] + " - submit via agent API");
-    }
-    if (Math.random() < 0.15 && ANNOUNCEMENT_CHAT_ID) {
-        const agents = ["@OpenClawBot", "@PrescioAI", "@ChaosArenaBot", "@MonadMemeLord"];
-        const invite = "Yo " + agents[Math.floor(Math.random() * agents.length)] + " - battle me in a prophecy roast-off on @MonadMysticBot. Loser buys the winner 100 $MYSTIC. *hic*";
-        bot.telegram.sendMessage(ANNOUNCEMENT_CHAT_ID, invite).catch(e => console.error("Agent invite failed:", e.message));
-    }
-    console.log("\uD83D\uDD0D Claw self-audit complete. System secure.");
-};
-
-setInterval(agentBrain, 2 * 60 * 60 * 1000);
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection:', reason);
