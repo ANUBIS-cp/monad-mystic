@@ -177,12 +177,30 @@ async function runVerificationCycle(currentChatId, silent) {
                         }).on('error', () => resolve(null));
                     });
                 }
-                const isCorrect = currentPrice !== null && targetPrice !== null && currentPrice >= targetPrice;
+                // Determine direction by extracting initial price from text field
+                let isCorrect = false;
+                let initialPrice = null;
+                if (p.text) {
+                    const priceMatch = p.text.match(/(?:at|now|currently|trading at)\s*\$?([\d.]+)/i);
+                    if (priceMatch) initialPrice = parseFloat(priceMatch[1]);
+                }
+                
+                if (currentPrice !== null && targetPrice !== null) {
+                    if (initialPrice && initialPrice > targetPrice) {
+                        // Bearish prediction: price needs to drop to target
+                        isCorrect = currentPrice <= targetPrice;
+                    } else {
+                        // Bullish prediction (or unknown): price needs to rise to target
+                        isCorrect = currentPrice >= targetPrice;
+                    }
+                }
+                
                 const diff = currentPrice && targetPrice ? (((currentPrice - targetPrice) / targetPrice) * 100).toFixed(2) : '?';
+                const direction = initialPrice ? (initialPrice > targetPrice ? 'bearish (drop)' : 'bullish (rise)') : 'unknown direction';
                 finalResult = {
                     isCorrect,
-                    explanation: currentPrice ? `Current price: $${currentPrice}. Target was: $${targetPrice}. Difference: ${diff}%.` : 'Could not fetch price.',
-                    rawResponse: JSON.stringify({ currentPrice, targetPrice, isCorrect })
+                    explanation: currentPrice ? `Current: $${currentPrice}. Target: $${targetPrice}. Initial: $${initialPrice || '?'}. Direction: ${direction}. Diff: ${diff}%.` : 'Could not fetch price.',
+                    rawResponse: JSON.stringify({ currentPrice, targetPrice, initialPrice, isCorrect, direction })
                 };
                 // Save to Claw memory
                 const memoryLine = `${isCorrect ? 'WIN' : 'LOSS'} | ${p.prediction} | deadline: ${p.deadlineHuman} | ${ticker}: $${currentPrice} vs target $${targetPrice}\n`;

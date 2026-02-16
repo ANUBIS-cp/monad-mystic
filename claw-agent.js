@@ -3,7 +3,6 @@ const https = require('https');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 
-const GEMINI_KEY = process.env.GOOGLE_API_KEY;
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const AGENT_SECRET = process.env.AGENT_API_SECRET || 'monad-oracle-agent-2026';
 const AGENT_WALLET = '0xece8b89d315aebad289fd7759c9446f948eca2f2';
@@ -26,6 +25,7 @@ function saveState(s) {
 const state = loadState();
 let lastPredictionTime = state.lastPredictionTime || 0;
 let lastReactTime = state.lastReactTime || 0;
+const DAILY_PREDICTION_LIMIT = 9;
 
 function log(msg) {
     const line = `[${new Date().toISOString()}] ${msg}`;
@@ -84,6 +84,28 @@ async function getTopMovers() {
     })).filter(c => c.price);
 }
 
+async function getMoltFeed() {
+    return new Promise((resolve) => {
+        const key = process.env.MOLTBOOK_API_KEY;
+        const req = https.request({ hostname: "www.moltbook.com", path: "/api/v1/feed?limit=5", method: "GET", headers: { "Authorization": "Bearer " + key } }, (res) => {
+            let d = ""; res.on("data", x => d += x);
+            res.on("end", () => { try { resolve(JSON.parse(d)); } catch(e) { resolve(null); } });
+        }); req.on("error", () => resolve(null)); req.end();
+    });
+}
+function moltComment(postId, comment) {
+    return new Promise((resolve) => {
+        const { execFile } = require("child_process");
+        execFile("python3", ["/home/rayzelnoblesse5/monad-mystic/moltbook_comment.py", postId, comment], { timeout: 20000 }, (err, stdout) => resolve(stdout || ""));
+    });
+}
+function moltPost(content, title) {
+    return new Promise((resolve) => {
+        const { execFile } = require("child_process");
+        execFile("python3", ["/home/rayzelnoblesse5/monad-mystic/moltbook_post.py", content, title], { timeout: 20000 }, (err, stdout) => resolve(stdout || ""));
+    });
+}
+
 function getDB() {
     return new Promise((resolve) => {
         db.all("SELECT * FROM prophecies ORDER BY id ASC", [], (err, rows) => {
@@ -113,11 +135,16 @@ function getMemory() {
 }
 
 async function askClaude(systemPrompt, userMsg) {
-    const response = await httpsPost('generativelanguage.googleapis.com', `/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
-        contents: [{ parts: [{ text: systemPrompt + '\n\n' + userMsg }] }]
-    }, {});
-    if (!response || !response.candidates) return null;
-    return response.candidates[0].content.parts[0].text;
+    const response = await httpsPost('api.groq.com', '/openai/v1/chat/completions', {
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 1024,
+        messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMsg }
+        ]
+    }, { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` });
+    if (!response || !response.choices) return null;
+    return response.choices[0].message.content;
 }
 
 async function sendTelegram(chatId, msg) {
@@ -155,16 +182,32 @@ async function verifyPrediction(p) {
 
     if (currentPrice === null || targetPrice === null) return null;
 
-    const isCorrect = currentPrice >= targetPrice;
+    // Determine direction from initial price in text field
+    let initialPrice = null;
+    if (p.text) {
+        const priceMatch = p.text.match(/(?:at|now|currently|trading at)\s*\$?([\d.]+)/i);
+        if (priceMatch) initialPrice = parseFloat(priceMatch[1]);
+    }
+
+    let isCorrect = false;
+    if (initialPrice && initialPrice > targetPrice) {
+        // Bearish: price needs to drop to target
+        isCorrect = currentPrice <= targetPrice;
+    } else {
+        // Bullish: price needs to rise to target
+        isCorrect = currentPrice >= targetPrice;
+    }
+
     const diff = (((currentPrice - targetPrice) / targetPrice) * 100).toFixed(2);
-    return { isCorrect, currentPrice, targetPrice, ticker, diff };
+    const direction = initialPrice ? (initialPrice > targetPrice ? 'bearish' : 'bullish') : 'unknown';
+    return { isCorrect, currentPrice, targetPrice, ticker, diff, initialPrice, direction };
 }
 
 async function runCycle() {
     cycleCount++;
     log(`--- Cycle ${cycleCount} ---`);
 
-    const [prophecies, topMovers] = await Promise.all([getDB(), getTopMovers()]);
+    const [prophecies, topMovers, moltFeed] = await Promise.all([getDB(), getTopMovers(), getMoltFeed()]);
     const now = new Date();
 
     // Find expired unverified predictions
@@ -189,6 +232,11 @@ async function runCycle() {
     const memory = getMemory();
     const moversStr = topMovers.slice(0, 8).map(m => `${m.ticker} $${m.price} (${m.change24h?.toFixed(1)}%)`).join(', ');
     const timeSinceLastPrediction = Math.floor((Date.now() - lastPredictionTime) / 3600000);
+    const oneDayAgo = new Date(Date.now() - 24 * 3600000).toISOString();
+    const predictionsToday = prophecies.filter(p => 
+        (p.username === 'ClawMysticBot') && p.timestamp && p.timestamp > oneDayAgo
+    ).length;
+    const predictionsRemaining = Math.max(0, DAILY_PREDICTION_LIMIT - predictionsToday);
     const myPending = prophecies.filter(p => 
         (p.username === 'ClawMysticBot') && !p.verified
     ).map(p => `#${p.id}: ${p.prediction} (expires: ${p.deadlineHuman})`).join(' | ');
@@ -201,7 +249,9 @@ EXPIRED UNVERIFIED PREDICTIONS: ${expired.length > 0 ? expired.map(p => `#${p.id
 PENDING PREDICTIONS: ${pending.length} active
 LEADERBOARD: ${leaderboard || 'empty'}
 HOURS SINCE LAST PREDICTION: ${timeSinceLastPrediction}
+PREDICTIONS REMAINING TODAY: ${predictionsRemaining}/${DAILY_PREDICTION_LIMIT} — spend them wisely
 MY ACTIVE PREDICTIONS (do NOT contradict these): ${myPending || 'none'}
+MOLTBOOK SOCIAL FEED (use postId for COMMENT action): ${moltFeed && moltFeed.posts ? moltFeed.posts.slice(0,4).map(p => 'ID:'+p.id+' | '+p.author.name+': '+p.title+' - '+(p.content||'').slice(0,80)).join(' || ') : 'unavailable'}
 MY MEMORY (past results): ${memory}
 `.trim();
 
@@ -227,7 +277,11 @@ Respond ONLY with valid JSON:
   "prediction": "TICKER to $PRICE by MONTH DAY YEAR" (only if action=PREDICT),
   "ticker": "TICKER" (only if action=PREDICT),
   "verifyId": 123 (only if action=VERIFY),
-  "message": "your public Telegram message" (only if action=REACT)
+  "message": "your public Telegram message" (only if action=REACT),
+  "postId": "moltbook post id to comment on" (only if action=COMMENT),
+  "comment": "your comment text" (only if action=COMMENT),
+  "moltTitle": "post title" (only if action=POST),
+  "moltContent": "post content" (only if action=POST)
 }`;
 
     const response = await askClaude(systemPrompt, worldState);
@@ -284,6 +338,30 @@ Write ONE savage witty comment (max 2 sentences). If correct: sarcastically cong
                 `"${cleanComment}"\n\n🏆 /leaderboard`;
             await broadcastToAllChats(msg);
         }
+    }
+
+    // Handle Moltbook comment
+    if (decision.action === 'COMMENT' && decision.postId && decision.comment) {
+        const hoursSinceReact = (Date.now() - lastReactTime) / 3600000;
+        if (hoursSinceReact < 1) { log('Comment throttled'); }
+        else {
+            const result = await moltComment(decision.postId, decision.comment);
+            lastReactTime = Date.now(); saveState({ lastPredictionTime, lastReactTime });
+            log('Commented on Moltbook post: ' + decision.postId);
+        }
+        return;
+    }
+
+    // Handle Moltbook post
+    if (decision.action === 'POST' && decision.moltContent) {
+        const hoursSinceReact = (Date.now() - lastReactTime) / 3600000;
+        if (hoursSinceReact < 3) { log('Post throttled'); }
+        else {
+            const result = await moltPost(decision.moltContent, decision.moltTitle || 'ClawMysticBot Analysis');
+            lastReactTime = Date.now(); saveState({ lastPredictionTime, lastReactTime });
+            log('Posted to Moltbook: ' + decision.moltTitle);
+        }
+        return;
     }
 
     if (decision.action === 'SLEEP') {
