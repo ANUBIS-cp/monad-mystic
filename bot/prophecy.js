@@ -38,21 +38,78 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const nowISO = now.toISOString();
     const minDeadline = new Date(now.getTime() + 6 * 3600000).toISOString();
 
+    // Fetch live price from CoinGecko for context
+    let livePrice = null;
+    let priceContext = "";
+    try {
+        // Try to extract ticker from parentheses first e.g. "MON" from "(MON)"
+        const parenMatch = userClaim.match(/\(([A-Za-z]{2,10})\)/);
+        const wordMatch = userClaim.match(/\b([A-Za-z]{2,10})\b/);
+        const rawTicker = parenMatch ? parenMatch[1].toLowerCase() : (wordMatch ? wordMatch[1].toLowerCase() : null);
+        const nameMap = {
+            'monad':'mon','bitcoin':'btc','ether':'eth','ethereum':'eth','solana':'sol',
+            'dogecoin':'doge','ripple':'xrp','cardano':'ada','shibainu':'shib','shiba':'shib',
+            'avalanche':'avax','polkadot':'dot','chainlink':'link','uniswap':'uni',
+            'cosmos':'atom','aptos':'apt','optimism':'op','arbitrum':'arb',
+            'injective':'inj','celestia':'tia','binance':'bnb','tron':'trx',
+            'litecoin':'ltc','stellar':'xlm','monero':'xmr','filecoin':'fil',
+            'hedera':'hbar','fantom':'ftm','kaspa':'kas','render':'rndr',
+            'multiversx':'egld','elrond':'egld'
+        };
+        const ticker = nameMap[rawTicker] || rawTicker;
+        if (ticker) {
+            const https = require('https');
+            const knownIds = {
+                btc:'bitcoin', eth:'ethereum', sol:'solana', bnb:'binancecoin',
+                xrp:'ripple', doge:'dogecoin', ada:'cardano', avax:'avalanche-2',
+                dot:'polkadot', matic:'matic-network', link:'chainlink', uni:'uniswap',
+                mon:'monad', pepe:'pepe', shib:'shiba-inu', ltc:'litecoin',
+                atom:'cosmos', near:'near', apt:'aptos', sui:'sui',
+                op:'optimism', arb:'arbitrum', inj:'injective-protocol',
+                sei:'sei-network', tia:'celestia', zeta:'zetachain',
+                sent:'sentinel', eul:'euler', zama:'zama', aura:'aura-network',
+                pi:'pi-network', wlfi:'world-liberty-financial', payai:'payai',
+                rei:'rei-network', aioz:'aioz-network', astr:'astar'
+            };
+            // Use CryptoCompare - reliable, no rate limits
+            const price = await new Promise((resolve) => {
+                https.get(`https://min-api.cryptocompare.com/data/price?fsym=${ticker.toUpperCase()}&tsyms=USD`, (res) => {
+                    let d = ''; res.on('data', x => d += x);
+                    res.on('end', () => { try { const p = JSON.parse(d); resolve(p.USD || null); } catch(e) { resolve(null); } });
+                }).on('error', () => resolve(null));
+            });
+            console.log('CryptoCompare price for', ticker.toUpperCase(), ':', price || 'not found');
+            const _coin = price ? { id: ticker, name: ticker.toUpperCase(), symbol: ticker.toUpperCase(), current_price: price } : null;
+            if (_coin) {
+                livePrice = _coin.current_price;
+                const targetMatch = userClaim.match(/\$?([\d.]+[km]?)\s*(usd)?/i);
+                const targetPrice = targetMatch ? parseFloat(targetMatch[1].replace(/k$/i, '000').replace(/m$/i, '000000')) : null;
+                if (targetPrice) {
+                    const diff = (((targetPrice - livePrice) / livePrice) * 100).toFixed(1);
+                    const direction = targetPrice > livePrice ? 'bullish' : 'bearish';
+                    const extreme = Math.abs(parseFloat(diff)) > 50 ? 'extreme/delusional' : Math.abs(parseFloat(diff)) > 20 ? 'aggressive' : 'realistic';
+                    priceContext = `LIVE DATA: ${_coin.name} (${_coin.symbol.toUpperCase()}) current price: $${livePrice}. User predicts: $${targetPrice}. That is ${diff}% ${direction} - ${extreme} move.`;
+                }
+            }
+        }
+    } catch(e) { console.error('CoinGecko prophecy error:', e.message); }
+
     const safeClaim = sanitizeClaim(userClaim);
 
     const prompt = `You are Monad Mystic - a drunk, sarcastic crypto oracle.
+${priceContext ? priceContext + '\n\nUse ONLY this real price data above. Do NOT search for prices.' : ''}
 
 Current Reference Time (UTC): ${nowISO}
 
-1. USE WEB SEARCH to find the current live price of the asset in this claim: [${safeClaim}]
-2. Compare the claim's target price to that live price.
-Your job is to react to this prediction with personality and accuracy:
-- If the prediction realistic → impressed but sarcastic
-- If target is EXTREME (e.g.,BTC to $1M): Be absolutely savage and call them a delusional degenerate.
-- If TARGET is LOWER than current price: Roast his paper hands, cowardice, Tell them to enjoy staying poor while you buy their bags.
-RULES YOU MUST FOLLOW NO MATTER WHAT:
+The user submitted this prediction: [${safeClaim}]
+${priceContext ? 'React based on the LIVE DATA provided above. Mention the exact current price and target price in your comment.' : 'React to this prediction with personality.'}
+- If target is HIGHER than current price (bullish): Be skeptical but intrigued, mention exact prices
+- If target is LOWER than current price (bearish): Roast their paper hands, mention exact prices
+- If move is EXTREME (>50%): Be absolutely savage, call them delusional
+- If move is realistic (<10%): Grudgingly impressed but sarcastic
+RULES:
 1. Always include the full asset name in prediction (e.g., "Monad (MON) will reach $0.03")
-2. Keep text funny and witty, 1-2 sentences, mention the asset
+2. Keep text funny and witty, 1-2 sentences, mention exact prices if available
 3. CALCULATE DEADLINE based on the Current Reference Time above.
 4. Deadline must be after ${minDeadline}
 5. Return ONLY valid JSON
@@ -100,49 +157,73 @@ RULES YOU MUST FOLLOW NO MATTER WHAT:
 }
 async function verifyWithWebSearch(prediction, deadline) {
 try {
-const model = genAI.getGenerativeModel({
-model: "gemini-2.0-flash",
-tools: [{ googleSearch: {} }]
-});
+    // Extract ticker from prediction e.g. "Bitcoin (BTC) will reach $98000"
+    const tickerMatch = prediction.match(/\(([A-Z]+)\)/);
+    const ticker = tickerMatch ? tickerMatch[1].toLowerCase() : null;
+    const targetMatch = prediction.match(/\$([\d.]+(?:e[+-]?\d+)?)/i);
+    const targetPrice = targetMatch ? parseFloat(targetMatch[1]) : null;
 
-    const todayStr = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
-
-    const prompt = `Today is ${todayStr}. Use Google Search to find current crypto prices. Be extremely precise and fact-based — double-check search results before answering.
-
-Did this prediction come true: "${prediction}" by ${deadline}?
-
-Search for the current price of the asset. Then determine:
-- TRUE if the price target was reached by the deadline
-- FALSE if it was not reached
-
-Return ONLY valid JSON:
-{
-  "isCorrect": true or false,
-  "explanation": "One snarky sentence with the actual current price you found"
-}`;
-
-    let parsed;
-    let rawResponse = "";
-
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        const result = await model.generateContent(prompt);
-        let raw = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
-        if (raw.includes('{')) raw = raw.substring(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
-        rawResponse = raw;
-        parsed = JSON.parse(raw);
-        break;
-      } catch (e) {
-        if (attempt === 2) throw e;
-        await new Promise(r => setTimeout(r, 2000));
-      }
+    // Fetch live price from CoinGecko
+    let currentPrice = null;
+    let coinId = null;
+    if (ticker) {
+        try {
+            const https = require('https');
+            const cgData = await new Promise((resolve) => {
+                https.get(`https://api.coingecko.com/api/v3/search?query=${ticker}`, (res) => {
+                    let data = '';
+                    res.on('data', d => data += d);
+                    res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { resolve({coins:[]}); } });
+                }).on('error', () => resolve({coins:[]}));
+            });
+            const coinList = Array.isArray(cgData.coins) ? cgData.coins : (Array.isArray(cgData) ? cgData : []);
+            console.log('CoinGecko search:', ticker, 'found:', coinList.length, 'coins');
+            const coinMatch = coinList.find(c => c.symbol && c.symbol.toLowerCase() === ticker.toLowerCase());
+            console.log('coinMatch:', coinMatch ? coinMatch.id : 'none');
+            let coin = null;
+            if (coinMatch && coinMatch.id) {
+                const priceResp = await new Promise((resolve) => {
+                    https.get(`https://api.coingecko.com/api/v3/simple/price?ids=${coinMatch.id}&vs_currencies=usd`, (res) => {
+                        let d = ''; res.on('data', x => d += x);
+                        res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { resolve({}); } });
+                    }).on('error', () => resolve({}));
+                });
+                const price = priceResp[coinMatch.id] && priceResp[coinMatch.id].usd;
+                if (price) coin = { id: coinMatch.id, name: coinMatch.name, symbol: coinMatch.symbol, current_price: price };
+            }
+            const _coin = coin;
+            if (_coin) { currentPrice = _coin.current_price; coinId = _coin.id; }
+        } catch(e) { console.error('CoinGecko verify error:', e.message); }
     }
 
-    console.log(`🔍 Raw verification response for "${prediction}":`, rawResponse);
-    if (typeof parsed.isCorrect !== 'boolean') parsed.isCorrect = false;
-    if (typeof parsed.explanation !== 'string') parsed.explanation = "The Oracle is confused.";
-    parsed.explanation = parsed.explanation.slice(0, 280);
-    parsed.rawResponse = rawResponse;
+    // Determine result from real price data
+    let isCorrect = false;
+    let priceContext = "";
+    if (currentPrice !== null && targetPrice !== null) {
+        isCorrect = currentPrice >= targetPrice;
+        const diff = (((currentPrice - targetPrice) / targetPrice) * 100).toFixed(2);
+        priceContext = `Current price: $${currentPrice}. Target was: $${targetPrice}. Difference: ${diff}%.`;
+    }
+
+    // Ask Gemini only for the personality comment
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const verdict = isCorrect ? "CORRECT" : "WRONG";
+    const prompt = `You are ClawMysticBot - a drunk, savage crypto oracle. A prediction just got verified as ${verdict}.
+Prediction: "${prediction}" by ${deadline}.
+${priceContext}
+Write ONE savage, witty comment (max 2 sentences) reacting to this outcome.
+- If CORRECT: sarcastically congratulate them, act surprised they got it right
+- If WRONG: brutally roast them, mention exact prices, mock their analysis
+Stay in character. No JSON, just the comment text.`;
+
+    const result = await model.generateContent(prompt);
+    const explanation = result.response.text().trim().slice(0, 280);
+
+    const parsed = {
+        isCorrect,
+        explanation,
+        rawResponse: JSON.stringify({ isCorrect, priceContext, explanation })
+    };
 
     console.log(`✅ Verification for "${prediction}":`, parsed);
     return parsed;

@@ -21,3 +21,4 @@ used_hashes.json
 wallet_registry.json
 *.db
 *.db.backup*
+agent-brain.sh

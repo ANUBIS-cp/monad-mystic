@@ -107,8 +107,10 @@ function escapeMD(str) {
 
 function setAnnouncementChat(ctx) {
     if (ctx.chat.type === 'group' || ctx.chat.type === 'supergroup') {
-        ANNOUNCEMENT_CHAT_ID = ctx.chat.id;
-        console.log("Announcement chat set to GROUP: " + ANNOUNCEMENT_CHAT_ID);
+        if (!ANNOUNCEMENT_CHAT_ID) {
+            ANNOUNCEMENT_CHAT_ID = ctx.chat.id;
+            console.log("Announcement chat set to GROUP: " + ANNOUNCEMENT_CHAT_ID);
+        }
     } else if (!ANNOUNCEMENT_CHAT_ID) {
         ANNOUNCEMENT_CHAT_ID = ctx.chat.id;
         console.log("Announcement chat set to PRIVATE fallback: " + ANNOUNCEMENT_CHAT_ID);
@@ -156,20 +158,47 @@ async function runVerificationCycle(currentChatId, silent) {
         await saveDB(db);
 
         try {
-            const result1 = await verifyWithWebSearch(p.prediction, p.deadlineHuman);
-            await new Promise(r => setTimeout(r, 3000));
-            const result2 = await verifyWithWebSearch(p.prediction, p.deadlineHuman);
-            const consensusCorrect = (result1.isCorrect === result2.isCorrect) ? result1.isCorrect : false;
-            const finalResult = { ...result1, isCorrect: consensusCorrect };
+            const isClawPrediction = p.username === 'ClawMysticBot' || (p.userWallet && p.userWallet.toLowerCase() === '0xece8b89d315aebad289fd7759c9446f948eca2f2');
+            let finalResult;
+
+            if (isClawPrediction) {
+                // For Claw predictions: use CryptoCompare directly, no Gemini comment
+                const tickerMatch = p.prediction.match(/\(([A-Z]+)\)/);
+                const ticker = tickerMatch ? tickerMatch[1] : null;
+                const targetMatch = p.prediction.match(/\$([\d.e+-]+)/i);
+                const targetPrice = targetMatch ? parseFloat(targetMatch[1]) : null;
+                let currentPrice = null;
+                if (ticker) {
+                    currentPrice = await new Promise((resolve) => {
+                        const https = require('https');
+                        https.get(`https://min-api.cryptocompare.com/data/price?fsym=${ticker}&tsyms=USD`, (res) => {
+                            let d = ''; res.on('data', x => d += x);
+                            res.on('end', () => { try { resolve(JSON.parse(d).USD || null); } catch(e) { resolve(null); } });
+                        }).on('error', () => resolve(null));
+                    });
+                }
+                const isCorrect = currentPrice !== null && targetPrice !== null && currentPrice >= targetPrice;
+                const diff = currentPrice && targetPrice ? (((currentPrice - targetPrice) / targetPrice) * 100).toFixed(2) : '?';
+                finalResult = {
+                    isCorrect,
+                    explanation: currentPrice ? `Current price: $${currentPrice}. Target was: $${targetPrice}. Difference: ${diff}%.` : 'Could not fetch price.',
+                    rawResponse: JSON.stringify({ currentPrice, targetPrice, isCorrect })
+                };
+                // Save to Claw memory
+                const memoryLine = `${isCorrect ? 'WIN' : 'LOSS'} | ${p.prediction} | deadline: ${p.deadlineHuman} | ${ticker}: $${currentPrice} vs target $${targetPrice}\n`;
+                fs.appendFileSync('/home/rayzelnoblesse5/monad-mystic/claw_memory.md', memoryLine);
+            } else {
+                // For human predictions: use Gemini with CryptoCompare price
+                const result1 = await verifyWithWebSearch(p.prediction, p.deadlineHuman);
+                await new Promise(r => setTimeout(r, 3000));
+                const result2 = await verifyWithWebSearch(p.prediction, p.deadlineHuman);
+                const consensusCorrect = (result1.isCorrect === result2.isCorrect) ? result1.isCorrect : false;
+                finalResult = { ...result1, isCorrect: consensusCorrect };
+            }
 
             p.verified = true;
-            // Write to Claw memory if this was agent prediction
-            if (p.username === '@ClawOracle' || (p.userWallet && p.userWallet.toLowerCase() === '0xece8b89d315aebad289fd7759c9446f948eca2f2')) {
-                const memoryLine = `${finalResult.isCorrect ? 'WIN' : 'LOSS'} | ${p.prediction} | deadline: ${p.deadlineHuman} | reason: ${finalResult.explanation}\n`;
-                fs.appendFileSync('/home/rayzelnoblesse5/monad-mystic/claw_memory.md', memoryLine);
-            }
             p.verificationResult = finalResult;
-            p.rawVerification = [result1.rawResponse, result2.rawResponse];
+            p.rawVerification = [finalResult.rawResponse];
             verified++;
             if (!p.onChainId) { try { await finalizeProphecy(p.id, finalResult.isCorrect); } catch(e) { console.error("finalize failed:", e.message); } }
 
@@ -183,17 +212,17 @@ async function runVerificationCycle(currentChatId, silent) {
                 if (!payoutResult.success) p.payoutFailed = true;
             }
 
-            const targetChat = p.chatId || currentChatId || ANNOUNCEMENT_CHAT_ID;
-            if (targetChat) {
-                bot.telegram.sendMessage(targetChat,
+            // Broadcast verification to all chats
+            const verifyMsg =
                     (finalResult.isCorrect ? "\uD83C\uDF89" : "\uD83D\uDE02") + " *PROPHECY #" + p.id + " " + (finalResult.isCorrect ? "FULFILLED" : "FAILED") + "!*\n\n" +
                     "\uD83D\uDC64 *Prophet:* " + escapeMD(p.username || "Unknown Prophet") + "\n" +
                     "\uD83D\uDCDC *Prediction:* _\"" + escapeMD(p.prediction) + "\"_\n" +
                     "\uD83D\uDCC5 *Deadline was:* " + escapeMD(p.deadlineHuman) + "\n\n" +
                     (finalResult.isCorrect ? "\u2705 THE ORACLE BOWS TO YOUR WISDOM!" : "\u274C WRONG! The Oracle cackles into the void!") + "\n" +
-                    "_\"" + escapeMD(finalResult.explanation) + "\"_" + paidMsg + "\n\n\uD83C\uDFC6 /leaderboard",
-                    { parse_mode: 'Markdown' }
-                );
+                    "_\"" + escapeMD(finalResult.explanation) + "\"_" + paidMsg + "\n\n\uD83C\uDFC6 /leaderboard";
+            const allChats = new Set([p.chatId, currentChatId, ANNOUNCEMENT_CHAT_ID].filter(Boolean));
+            for (const chatId of allChats) {
+                bot.telegram.sendMessage(chatId, verifyMsg, { parse_mode: 'Markdown' }).catch(e => console.error('Verify broadcast error:', chatId, e.message));
             }
         } catch(e) {
             console.error("Error verifying #" + p.id + ":", e.message);

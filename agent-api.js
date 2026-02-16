@@ -89,7 +89,7 @@ http.createServer(async (req, res) => {
     req.on('data', d => body += d);
     req.on('end', async () => {
         try {
-            const { secret, claim, walletAddress, agentName } = JSON.parse(body);
+            const { secret, claim, walletAddress, agentName, reasoning } = JSON.parse(body);
 
             if (secret !== AGENT_API_SECRET) {
                 res.writeHead(401);
@@ -110,10 +110,31 @@ http.createServer(async (req, res) => {
                 return;
             }
 
-            const result = await generateProphecy(claim);
             const db = await getDB();
             const id = db.length > 0 ? Math.max(...db.map(p => p.id)) + 1 : 0;
             const displayName = agentName || '@MonadMysticAgent';
+            const isAgentCall = !!agentName;
+            let result;
+            if (isAgentCall) {
+                // Agent predictions: use claim as-is, no Gemini rewrite
+                const deadline = new Date(Date.now() + 24 * 3600000);
+                // Parse deadline from claim if present e.g. "SOL to $91 by FEBRUARY 17 2026"
+                const deadlineMatch = claim.match(/by\s+([A-Z]+\s+\d+\s+\d{4})/i);
+                const parsedDeadline = deadlineMatch ? new Date(deadlineMatch[1]) : deadline;
+                const finalDeadline = isNaN(parsedDeadline) ? deadline : parsedDeadline;
+                // Parse prediction ticker and target
+                const tickerMatch = claim.match(/^([A-Z]+)\s+to\s+\$([\d.]+)/i);
+                const prediction = tickerMatch ? 
+                    `${tickerMatch[1].toUpperCase()} will reach $${tickerMatch[2]}` : claim;
+                result = {
+                    prediction,
+                    deadline: finalDeadline.toISOString(),
+                    deadlineHuman: finalDeadline.toLocaleString('en-US', { month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true }),
+                    text: reasoning || null
+                };
+            } else {
+                result = await generateProphecy(claim);
+            }
 
             const newProphecy = {
                 id,
@@ -149,7 +170,7 @@ http.createServer(async (req, res) => {
 
             const msg =
                     "🤖 <b>THE ORACLE SPEAKS FOR ITSELF</b>\n\n" +
-                    "<i>\"" + result.text + "\"</i>\n\n" +
+                    "<i>\"" + (result.text || "The Oracle calculates in silence.") + "\"</i>\n\n" +
                     "🎯 <b>Prediction #" + id + ":</b> " + result.prediction + "\n" +
                     "⏰ <b>Deadline:</b> " + result.deadlineHuman + "\n" +
                     "👤 <b>Agent:</b> " + displayName + "\n\n" +
