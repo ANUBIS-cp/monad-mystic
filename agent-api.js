@@ -164,9 +164,10 @@ http.createServer(async (req, res) => {
                         await bot.telegram.sendMessage(ANNOUNCEMENT_CHAT_ID, msg, { parse_mode: 'HTML' })
                             .catch(e => console.error('Fallback send error:', e.message));
                     } else {
+                        const mutedChats = (process.env.MUTED_CHATS || '').split(',').map(s => s.trim()).filter(Boolean);
                         const sentChats = new Set();
                         for (const row of chats) {
-                            if (row.chatId && !sentChats.has(row.chatId)) {
+                            if (row.chatId && !sentChats.has(row.chatId) && !mutedChats.includes(String(row.chatId))) {
                                 sentChats.add(row.chatId);
                                 await bot.telegram.sendMessage(row.chatId, msg, { parse_mode: 'HTML' })
                                     .catch(e => console.error('Broadcast error to ' + row.chatId + ':', e.message));

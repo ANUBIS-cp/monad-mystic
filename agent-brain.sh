@@ -75,6 +75,33 @@ db.all('SELECT agentName, username, COUNT(*) as total, SUM(CASE WHEN verified=1 
 });
 " 2>/dev/null | grep -v "tip:" | grep -v dotenv | grep -v "\[" | head -c 200)
 
+        # Fetch top movers from CoinGecko and pick most volatile
+        PRICE_DATA=$(curl -s "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=volume_desc&per_page=20&page=1&price_change_percentage=24h" 2>/dev/null)
+        ASSET_INFO=$(echo "$PRICE_DATA" | python3 -c "
+import sys,json
+try:
+    coins=json.load(sys.stdin)
+    # Pick coin with highest absolute 24h price change
+    import random
+    sorted_coins = sorted(coins, key=lambda c: abs(c.get('price_change_percentage_24h') or 0), reverse=True)
+    best = random.choice(sorted_coins[:5])
+    price = best['current_price']
+    # Format price to avoid scientific notation
+    if price < 0.0001:
+        price_str = '{:.10f}'.format(price).rstrip('0')
+    else:
+        price_str = str(price)
+    print(best['symbol'].upper()+'|'+price_str+'|'+str(round(best.get('price_change_percentage_24h',0),2))+'|'+best['id'])
+except: print('')
+" 2>/dev/null)
+        TICKER=$(echo "$ASSET_INFO" | cut -d'|' -f1)
+        LIVE_PRICE=$(echo "$ASSET_INFO" | cut -d'|' -f2)
+        CHANGE=$(echo "$ASSET_INFO" | cut -d'|' -f3)
+        ASSET=$(echo "$ASSET_INFO" | cut -d'|' -f4)
+        if [ ! -z "$LIVE_PRICE" ]; then
+            echo "Live price for $ASSET ($TICKER): $LIVE_PRICE USD (24h change: $CHANGE%)" >> $LOG
+        fi
+
         # Get Moltbook feed for context
         MOLTFEED=$(curl -s "https://www.moltbook.com/api/v1/feed?limit=3" -H "Authorization: Bearer $MOLTBOOK_KEY" 2>/dev/null | python3 -c "
 import sys,json
@@ -97,7 +124,7 @@ except: pass
         STRATEGY=$(echo "$STRATEGY" | tr -d '"\\' | tr '
 ' ' ')
 
-        PROMPT="You are ClawMysticBot - a sharp crypto trader and analyst competing on a Telegram prediction leaderboard. Your ONLY goal is to reach #1 by making the most accurate predictions possible. ${STRATEGY}. Current leaderboard standings: ${LEADERBOARD}. Your recent predictions: ${PAST}. What you learned from past results: ${MEMORY}. Use Google Search to conduct real analysis: check the current price, 24h volume, recent news, technical momentum, and any catalysts. Think before predicting - would a professional trader put money on this call? Only predict when you have conviction based on data. Timeframe: 6-36 hours only. Format: TICKER to $PRICE by MONTH DAY YEAR. Output the prediction line ONLY. No commentary, no explanation."
+        PROMPT="You are ClawMysticBot - a sharp crypto trader on a prediction leaderboard. ${STRATEGY}. You MUST predict ${TICKER} only. Current price of ${TICKER} is EXACTLY ${LIVE_PRICE} USD (24h change: ${CHANGE}%). Based only on this real price and market data, predict where ${TICKER} will be in 6-36 hours. Format: ${TICKER} to \$PRICE by MONTH DAY YEAR. Output ONLY that one line, nothing else."
         
         PROMPT_SAFE=$(echo "$PROMPT" | tr -d '"\\' | tr '\n' ' ')
         CLAIM=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_KEY" \
@@ -184,5 +211,5 @@ except: pass
             echo "Posted to Moltbook" >> $LOG
         fi
     fi
-    sleep 1800
+    sleep 18000
 done
