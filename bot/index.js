@@ -320,7 +320,94 @@ bot.command('vote', async (ctx) => {
     ctx.reply("\u2705 Vote recorded! Wallet-based $MYSTIC voting weight coming soon.");
 });
 
+bot.command('ask', async (ctx) => {
+    const question = ctx.message.text.replace(/^\/ask(@\w+)?\s*/i, '').trim();
+    if (!question) return ctx.reply('Ask me something. Example: /ask what do you think about BTC?', { parse_mode: 'HTML' });
+    
+    const memory = (() => {
+        try {
+            const lines = require('fs').readFileSync('/home/rayzelnoblesse5/monad-mystic/claw_memory.md', 'utf8').split('\n').filter(Boolean);
+            return lines.slice(-5).join('\n');
+        } catch(e) { return 'No memory yet.'; }
+    })();
+
+    const https = require('https');
+    const body = JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        max_tokens: 300,
+        messages: [
+            { role: 'system', content: `You are ClawMysticBot - a crypto oracle. You talk like a sharp, cynical trader who has seen everything. No hype, no cringe, no emojis. Just blunt honest takes with real data when you have it. Max 2-3 sentences. Memory:\n${memory}` },
+            { role: 'user', content: question }
+        ]
+    });
+
+    try {
+        const response = await new Promise((resolve) => {
+            const req = https.request({
+                hostname: 'api.groq.com', path: '/openai/v1/chat/completions', method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Length': Buffer.byteLength(body) }
+            }, (res) => {
+                let d = ''; res.on('data', x => d += x);
+                res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { resolve(null); } });
+            });
+            req.on('error', () => resolve(null));
+            req.write(body); req.end();
+        });
+        const reply = response && response.choices ? response.choices[0].message.content : "The Oracle is too drunk to answer right now. *hic*";
+        await ctx.reply(reply, { parse_mode: 'HTML' });
+    } catch(e) {
+        await ctx.reply('🤖 The Oracle is unavailable. *hic*');
+    }
+});
+
 bot.on('text', async (ctx) => {
+    // Respond when message starts with "claw"
+    const msgText = ctx.message.text || '';
+    if (msgText.toLowerCase().startsWith('chog ') || msgText.toLowerCase() === 'chog') {
+        const question = msgText.slice(5).trim() || 'what do you think about the market?';
+        const memory = (() => {
+            try {
+                const lines = require('fs').readFileSync('/home/rayzelnoblesse5/monad-mystic/claw_memory.md', 'utf8').split('\n').filter(Boolean);
+                return lines.slice(-5).join('\n');
+            } catch(e) { return ''; }
+        })();
+        const https = require('https');
+        // Extract coins from question and fetch live prices
+        const nameMap2 = {'monad':'mon','bitcoin':'btc','ethereum':'eth','solana':'sol','dogecoin':'doge','ripple':'xrp','cardano':'ada','shiba':'shib','avalanche':'avax','pepe':'pepe','binance':'bnb'};
+        const words2 = question.toLowerCase().split(/\s+/);
+        const mentioned2 = [...new Set(words2.map(w => nameMap2[w] || w).filter(w => /^[a-z]{2,10}$/.test(w)))];
+        const coinsToFetch2 = [...new Set(['btc','eth','sol','mon',...mentioned2])].slice(0,10).join(',').toUpperCase();
+        const livePrices = await new Promise((resolve) => {
+            https.get(`https://min-api.cryptocompare.com/data/pricemulti?fsyms=${coinsToFetch2}&tsyms=USD`, (res) => {
+                let d = ''; res.on('data', x => d += x);
+                res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { resolve(null); } });
+            }).on('error', () => resolve(null));
+        });
+        const priceStr = livePrices ? Object.entries(livePrices).filter(([k,v])=>v.USD).map(([k,v]) => `${k}:${v.USD}`).join(', ') : '';
+        const body = JSON.stringify({
+            model: 'llama-3.1-8b-instant', max_tokens: 300,
+            messages: [
+                { role: 'system', content: `You are Chog - a sharp, cynical AI with a dark sense of humor. You know crypto deeply but you're not limited to it. You talk like a real person, not a bot. No emojis, no cringe, no forced crypto references. Answer what's asked directly. If it's about crypto use these live prices: ${priceStr}. MON = Monad (L1 blockchain). Max 2-3 sentences. Memory:\n${memory}` },
+                { role: 'user', content: question }
+            ]
+        });
+        try {
+            const response = await new Promise((resolve) => {
+                const req = https.request({
+                    hostname: 'api.groq.com', path: '/openai/v1/chat/completions', method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Length': Buffer.byteLength(body) }
+                }, (res) => {
+                    let d = ''; res.on('data', x => d += x);
+                    res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { resolve(null); } });
+                });
+                req.on('error', () => resolve(null));
+                req.write(body); req.end();
+            });
+            const reply = response && response.choices ? response.choices[0].message.content : "The Oracle is too drunk to answer. *hic*";
+            return ctx.reply(reply, { parse_mode: 'HTML' });
+        } catch(e) { return ctx.reply('🤖 The Oracle is unavailable. *hic*'); }
+    }
+
     setAnnouncementChat(ctx);
     const userId = ctx.from.id;
     const state = userStates.get(userId);

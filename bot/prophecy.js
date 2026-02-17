@@ -148,7 +148,7 @@ ${priceContext ? 'React based on the LIVE DATA provided above. Mention the exact
 - If move is EXTREME (>50%): Be absolutely savage, call them delusional
 - If move is realistic (<10%): Grudgingly impressed but sarcastic
 RULES:
-1. Always include the full asset name in prediction (e.g., "Monad (MON) will reach $0.03")
+1. Always use the EXACT asset name from the user's claim, never abbreviate or nickname it (e.g., use 'Monad' not 'Monk', use 'Bitcoin' not 'BTC')
 2. Keep text funny and witty, 1-2 sentences, mention exact prices if available
 3. CALCULATE DEADLINE based on the Current Reference Time above.
 4. Deadline must be after ${minDeadline}

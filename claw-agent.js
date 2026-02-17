@@ -85,8 +85,39 @@ async function getTopMovers() {
         ticker: c.CoinInfo.Name,
         name: c.CoinInfo.FullName,
         price: c.RAW && c.RAW.USD ? c.RAW.USD.PRICE : null,
-        change24h: c.RAW && c.RAW.USD ? c.RAW.USD.CHANGEPCT24HOUR : null
+        change24h: c.RAW && c.RAW.USD ? c.RAW.USD.CHANGEPCT24HOUR : null,
+        changePctHour: c.RAW && c.RAW.USD ? c.RAW.USD.CHANGEPCTHOUR : null,
+        volume24h: c.RAW && c.RAW.USD ? c.RAW.USD.TOTALVOLUME24H : null,
+        high24h: c.RAW && c.RAW.USD ? c.RAW.USD.HIGH24HOUR : null,
+        low24h: c.RAW && c.RAW.USD ? c.RAW.USD.LOW24HOUR : null,
     })).filter(c => c.price);
+}
+
+async function getNewsHeadlines() {
+    const data = await httpsGet('https://min-api.cryptocompare.com/data/v2/news/?lang=EN&sortOrder=latest');
+    if (!data || !data.Data) return [];
+    return data.Data.slice(0, 2).map(n => n.title);
+}
+
+function analyzeMemory() {
+    try {
+        const lines = fs.readFileSync(MEMORY_FILE, 'utf8').split('\n').filter(Boolean);
+        const stats = {};
+        lines.forEach(line => {
+            const winLoss = line.startsWith('WIN') ? 'win' : 'loss';
+            const tickerMatch = line.match(/\|\s*([A-Z]+):\s*\$/);
+            if (tickerMatch) {
+                const t = tickerMatch[1];
+                if (!stats[t]) stats[t] = { wins: 0, losses: 0 };
+                stats[t][winLoss === 'win' ? 'wins' : 'losses']++;
+            }
+        });
+        return Object.entries(stats).map(([t, s]) => {
+            const total = s.wins + s.losses;
+            const rate = total > 0 ? Math.round((s.wins / total) * 100) : 0;
+            return `${t}:${s.wins}/${total}(${rate}%)`;
+        }).join(' ');
+    } catch(e) { return ''; }
 }
 
 async function getMoltFeed() {
@@ -135,7 +166,7 @@ function updateProphecy(id, fields) {
 function getMemory() {
     try {
         const lines = fs.readFileSync(MEMORY_FILE, 'utf8').split('\n').filter(Boolean);
-        return lines.slice(-10).join('\n'); // last 10 entries
+        return lines.slice(-5).join('\n'); // last 10 entries
     } catch(e) { return 'No memory yet.'; }
 }
 
@@ -174,8 +205,13 @@ async function broadcastToAllChats(msg) {
 }
 
 async function verifyPrediction(p) {
-    const tickerMatch = p.prediction.match(/\(([A-Z]+)\)/);
-    const ticker = tickerMatch ? tickerMatch[1] : null;
+    const tickerMatch = p.prediction.match(/\(([A-Z]+)\)/) || p.prediction.match(/^([A-Za-z]+)\s+will/i);
+    const rawTicker = tickerMatch ? tickerMatch[1] : null;
+    const nameMap = {
+        'monad':'mon','bitcoin':'btc','ethereum':'eth','solana':'sol','dogecoin':'doge',
+        'ripple':'xrp','cardano':'ada','shiba':'shib','avalanche':'avax','pepe':'pepe'
+    };
+    const ticker = rawTicker ? (nameMap[rawTicker.toLowerCase()] || rawTicker.toUpperCase()) : null;
     const targetMatch = p.prediction.match(/\$([\d.e+-]+)/i);
     const targetPrice = targetMatch ? parseFloat(targetMatch[1]) : null;
 
@@ -187,8 +223,12 @@ async function verifyPrediction(p) {
 
     if (currentPrice === null || targetPrice === null) return null;
 
-    // Use stored initialPrice from database
-    const initialPrice = p.initialPrice;
+    // Use stored initialPrice, fallback to parsing text field for old predictions
+    let initialPrice = p.initialPrice;
+    if (!initialPrice && p.text) {
+        const priceMatch = p.text.match(/(?:at|now|currently|trading at|from)\s*\$?([\d.]+)/i);
+        if (priceMatch) initialPrice = parseFloat(priceMatch[1]);
+    }
 
     let isCorrect = false;
     if (initialPrice && initialPrice > targetPrice) {
@@ -208,7 +248,7 @@ async function runCycle() {
     cycleCount++;
     log(`--- Cycle ${cycleCount} ---`);
 
-    const [prophecies, topMovers, moltFeed] = await Promise.all([getDB(), getTopMovers(), getMoltFeed()]);
+    const [prophecies, topMovers, moltFeed, newsHeadlines] = await Promise.all([getDB(), getTopMovers(), getMoltFeed(), getNewsHeadlines()]);
     const now = new Date();
 
     // Find expired unverified predictions
@@ -227,11 +267,15 @@ async function runCycle() {
         if (!stats[p.username]) stats[p.username] = { correct: 0, total: 0 };
         if (p.verified) { stats[p.username].total++; if (p.verificationResult && p.verificationResult.isCorrect) stats[p.username].correct++; }
     });
-    const leaderboard = Object.entries(stats).sort((a,b) => b[1].correct - a[1].correct).slice(0, 5)
+    const leaderboard = Object.entries(stats).sort((a,b) => b[1].correct - a[1].correct).slice(0, 3)
         .map(([name, s]) => `${name}: ${s.correct}/${s.total}`).join(', ');
 
     const memory = getMemory();
-    const moversStr = topMovers.slice(0, 5).map(m => `${m.ticker} $${m.price.toFixed(2)} ${m.change24h?.toFixed(1)}%`).join(' | ');
+    const moversStr = topMovers.slice(0, 4).map(m => {
+        const vol = m.volume24h ? `vol:${(m.volume24h/1e9).toFixed(1)}B` : '';
+        return `${m.ticker} ${m.price.toFixed(2)}USD ${m.change24h?.toFixed(1)}%24h ${m.changePctHour?.toFixed(2)}%1h ${vol}`;
+    }).join(' | ');
+    const assetStats = analyzeMemory();
     const timeSinceLastPrediction = Math.floor((Date.now() - lastPredictionTime) / 3600000);
     const oneDayAgo = new Date(Date.now() - 24 * 3600000).toISOString();
     const predictionsToday = prophecies.filter(p => 
@@ -253,7 +297,9 @@ HOURS SINCE LAST PREDICTION: ${timeSinceLastPrediction}
 PREDICTIONS REMAINING TODAY: ${predictionsRemaining}/${DAILY_PREDICTION_LIMIT} — spend them wisely
 ${myPending ? 'MY ACTIVE: ' + myPending : ''}
 SOCIAL: ${moltFeed && moltFeed.posts ? moltFeed.posts.slice(0,2).map(p => p.id+':'+p.author.name+'-'+p.title.slice(0,40)).join(' | ') : 'n/a'}
-MY MEMORY (past results): ${memory}
+MY WIN RATES BY ASSET: ${assetStats || 'no data yet'}
+LATEST CRYPTO NEWS: ${newsHeadlines.length ? newsHeadlines.join(' | ') : 'unavailable'}
+MY MEMORY (recent): ${memory}
 `.trim();
 
     const systemPrompt = `You are ClawMysticBot - a savage, skeptical, autonomous crypto AI agent. You compete on a prediction leaderboard and you want to WIN. You are skeptical of everything including your own analysis. You question data, double-check logic, and only act when you're confident.
