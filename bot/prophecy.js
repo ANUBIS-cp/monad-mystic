@@ -3,7 +3,7 @@ require('dotenv').config({ path: '/home/rayzelnoblesse5/monad-mystic/.env' });
 
 async function groqChat(systemPrompt, userMsg) {
     const body = JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'llama-3.1-8b-instant',
         max_tokens: 1024,
         messages: [
             { role: 'system', content: systemPrompt },
@@ -26,13 +26,18 @@ async function groqChat(systemPrompt, userMsg) {
     });
 }
 
-async function fetchPrice(ticker) {
-    return new Promise((resolve) => {
-        https.get(`https://min-api.cryptocompare.com/data/price?fsym=${ticker.toUpperCase()}&tsyms=USD`, (res) => {
-            let d = ''; res.on('data', x => d += x);
-            res.on('end', () => { try { const p = JSON.parse(d); resolve(p.USD || null); } catch(e) { resolve(null); } });
-        }).on('error', () => resolve(null));
-    });
+async function fetchPrice(ticker, retries = 3) {
+    for (let attempt = 0; attempt < retries; attempt++) {
+        const price = await new Promise((resolve) => {
+            https.get(`https://min-api.cryptocompare.com/data/price?fsym=${ticker.toUpperCase()}&tsyms=USD`, (res) => {
+                let d = ''; res.on('data', x => d += x);
+                res.on('end', () => { try { const p = JSON.parse(d); resolve(p.USD || null); } catch(e) { resolve(null); } });
+            }).on('error', () => resolve(null));
+        });
+        if (price !== null) return price;
+        if (attempt < retries - 1) await new Promise(r => setTimeout(r, 1000));
+    }
+    return null;
 }
 
 function sanitizeClaim(userClaim) {
@@ -46,7 +51,7 @@ function sanitizeClaim(userClaim) {
         .slice(0, 100);
 }
 
-function validateClaim(userClaim) {
+async function validateClaim(userClaim) {
     const claim = userClaim.toLowerCase();
     if (/\b\d+\s*(min|minute|minutes|mins)\b/.test(claim))
         return { valid: false, reason: "🛑 *REJECTED:* Minutes? The Oracle doesn't squint at milliseconds. 6 hours minimum! *hic*" };
@@ -56,6 +61,29 @@ function validateClaim(userClaim) {
         return { valid: false, reason: "🛑 *REJECTED:* Too vague, mortal. Give me a real deadline — at least 6 hours from now!" };
     if (!/\d/.test(claim) && !/\b(btc|eth|sol|mon|monad|bitcoin|ethereum|solana|crypto)\b/.test(claim))
         return { valid: false, reason: "🛑 *REJECTED:* The spirits need numbers and assets! Example: 'BTC to $70k by Feb 15'" };
+    
+    // Validate coin name by checking if CryptoCompare can find it
+    const parenMatch = userClaim.match(/\(([A-Za-z]{2,10})\)/);
+    const wordMatch = userClaim.match(/\b([A-Za-z]{2,10})\b/);
+    const rawTicker = parenMatch ? parenMatch[1].toLowerCase() : (wordMatch ? wordMatch[1].toLowerCase() : null);
+    if (rawTicker) {
+        const nameMap = {
+            'monad':'mon','bitcoin':'btc','ether':'eth','ethereum':'eth','solana':'sol',
+            'dogecoin':'doge','ripple':'xrp','cardano':'ada','shibainu':'shib','shiba':'shib',
+            'avalanche':'avax','polkadot':'dot','chainlink':'link','uniswap':'uni',
+            'cosmos':'atom','aptos':'apt','optimism':'op','arbitrum':'arb',
+            'injective':'inj','celestia':'tia','binance':'bnb','tron':'trx',
+            'litecoin':'ltc','stellar':'xlm','monero':'xmr','filecoin':'fil',
+            'hedera':'hbar','fantom':'ftm','kaspa':'kas','render':'rndr',
+            'multiversx':'egld','elrond':'egld'
+        };
+        const ticker = nameMap[rawTicker] || rawTicker;
+        const testPrice = await fetchPrice(ticker);
+        if (!testPrice) {
+            return { valid: false, reason: `🛑 *REJECTED:* "${rawTicker.toUpperCase()}" not found in CryptoCompare. Use tickers like BTC, ETH, SOL, MON, XRP, DOGE, ADA, PEPE, etc.` };
+        }
+    }
+    
     return { valid: true };
 }
 
@@ -67,6 +95,7 @@ async function generateProphecy(userClaim) {
 
         // Fetch live price from CryptoCompare
         let priceContext = "";
+        let livePrice = null;
         try {
             const parenMatch = userClaim.match(/\(([A-Za-z]{2,10})\)/);
             const wordMatch = userClaim.match(/\b([A-Za-z]{2,10})\b/);
@@ -83,8 +112,13 @@ async function generateProphecy(userClaim) {
             };
             const ticker = nameMap[rawTicker] || rawTicker;
             if (ticker) {
-                const livePrice = await fetchPrice(ticker);
+                livePrice = await fetchPrice(ticker);
                 console.log('CryptoCompare price for', ticker.toUpperCase(), ':', livePrice || 'not found');
+                
+                if (!livePrice) {
+                    throw new Error(`INVALID_COIN:${ticker.toUpperCase()} not found. Check spelling or use ticker symbol (BTC, ETH, SOL, MON, etc.)`);
+                }
+                
                 if (livePrice) {
                     const targetMatch = userClaim.match(/\$?([\d.]+[km]?)\s*(usd)?/i);
                     const targetPrice = targetMatch ? parseFloat(targetMatch[1].replace(/k$/i, '000').replace(/m$/i, '000000')) : null;
@@ -96,7 +130,10 @@ async function generateProphecy(userClaim) {
                     }
                 }
             }
-        } catch(e) { console.error('Price fetch error:', e.message); }
+        } catch(e) { 
+            console.error('Price fetch error:', e.message);
+            if (e.message && e.message.includes('INVALID_COIN')) throw e;
+        }
 
         const safeClaim = sanitizeClaim(userClaim);
         const prompt = `You are Monad Mystic - a drunk, sarcastic crypto oracle.
@@ -142,10 +179,12 @@ RULES:
             month: 'long', day: 'numeric', year: 'numeric',
             hour: 'numeric', minute: '2-digit', hour12: true
         });
-
+        
+        parsed.initialPrice = livePrice;  // Include initialPrice for storage
         return parsed;
     } catch(e) {
         console.error("AI Error:", e.message);
+        if (e.message && e.message.includes('INVALID_COIN')) throw e;
         const deadline = new Date(Date.now() + 24 * 3600000);
         return {
             text: `The Oracle sees... *hic*... bold claim, mortal.`,

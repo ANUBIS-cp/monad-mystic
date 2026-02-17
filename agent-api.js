@@ -10,6 +10,22 @@ const AGENT_API_SECRET = process.env.AGENT_API_SECRET || 'monad-oracle-agent-202
 const dbPath = '/home/rayzelnoblesse5/monad-mystic/prophecies.db';
 const cacheFile = 'prophecies_cache.json';
 
+async function fetchPrice(ticker, retries = 3) {
+    const https = require('https');
+    for (let attempt = 0; attempt < retries; attempt++) {
+        const price = await new Promise((resolve) => {
+            https.get(`https://min-api.cryptocompare.com/data/price?fsym=${ticker.toUpperCase()}&tsyms=USD`, (res) => {
+                let d = ''; res.on('data', x => d += x);
+                res.on('end', () => { try { const p = JSON.parse(d); resolve(p.USD || null); } catch(e) { resolve(null); } });
+            }).on('error', () => resolve(null));
+        });
+        if (price !== null) return price;
+        if (attempt < retries - 1) await new Promise(r => setTimeout(r, 1000));
+    }
+    return null;
+}
+
+
 // Use separate DB connection with busy timeout to avoid SQLITE_BUSY crashes
 const sqldb = new sqlite3.Database(dbPath, (err) => {
     if (err) console.error('Agent API DB error:', err.message);
@@ -126,11 +142,19 @@ http.createServer(async (req, res) => {
                 const tickerMatch = claim.match(/^([A-Z]+)\s+to\s+\$([\d.]+)/i);
                 const prediction = tickerMatch ? 
                     `${tickerMatch[1].toUpperCase()} will reach $${tickerMatch[2]}` : claim;
+                
+                // Fetch initialPrice for agent predictions
+                let initialPrice = null;
+                if (tickerMatch) {
+                    initialPrice = await fetchPrice(tickerMatch[1]);
+                }
+                
                 result = {
                     prediction,
                     deadline: finalDeadline.toISOString(),
                     deadlineHuman: finalDeadline.toLocaleString('en-US', { month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true }),
-                    text: reasoning || null
+                    text: reasoning || null,
+                    initialPrice
                 };
             } else {
                 result = await generateProphecy(claim);
@@ -146,6 +170,7 @@ http.createServer(async (req, res) => {
                 deadline: result.deadline,
                 deadlineHuman: result.deadlineHuman,
                 text: result.text,
+                initialPrice: result.initialPrice || null,
                 verified: false,
                 verificationResult: {},
                 rawVerification: [],

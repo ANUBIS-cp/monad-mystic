@@ -46,7 +46,7 @@ function initDB() {
     sqldb.configure("busyTimeout", 30000);
     sqldb.run("PRAGMA journal_mode=WAL");
     sqldb.serialize(() => {
-        sqldb.run("CREATE TABLE IF NOT EXISTS prophecies (id INTEGER PRIMARY KEY, userWallet TEXT, username TEXT, userId INTEGER, chatId INTEGER, prediction TEXT, deadline TEXT, deadlineHuman TEXT, text TEXT, verified INTEGER DEFAULT 0, verificationResult TEXT, rawVerification TEXT, payoutSent INTEGER DEFAULT 0, payoutMethod TEXT, payoutFailed INTEGER DEFAULT 0, isProcessing INTEGER DEFAULT 0, onChainId INTEGER, timestamp TEXT, paymentTx TEXT)");
+        sqldb.run("CREATE TABLE IF NOT EXISTS prophecies (id INTEGER PRIMARY KEY, userWallet TEXT, username TEXT, userId INTEGER, chatId INTEGER, prediction TEXT, deadline TEXT, deadlineHuman TEXT, text TEXT, verified INTEGER DEFAULT 0, verificationResult TEXT, rawVerification TEXT, payoutSent INTEGER DEFAULT 0, payoutMethod TEXT, payoutFailed INTEGER DEFAULT 0, isProcessing INTEGER DEFAULT 0, onChainId INTEGER, timestamp TEXT, paymentTx TEXT, initialPrice REAL)");
     });
 }
 initDB();
@@ -138,127 +138,6 @@ function buildShareUrl(prediction, deadlineHuman, roast) {
     const availableSpace = 280 - intro.length - footer.length - 10;
     const cleanRoast = roast && roast.length > availableSpace ? roast.substring(0, availableSpace).trim() + "..." : roast || "the spirits have spoken";
     return "https://twitter.com/intent/tweet?text=" + encodeURIComponent(intro + cleanRoast + footer);
-}
-
-async function runVerificationCycle(currentChatId, silent) {
-    if (silent === undefined) silent = false;
-    console.log("Running verification cycle...");
-    const db = await getDB();
-    const now = new Date();
-    let verified = 0, pending = 0;
-
-    for (const p of db) {
-        if (p.verified) continue;
-        const deadline = new Date(p.deadline);
-        if (now < deadline) { pending++; continue; }
-        if (processingProphecies.has(p.id)) continue;
-
-        processingProphecies.add(p.id);
-        p.isProcessing = true;
-        await saveDB(db);
-
-        try {
-            const isClawPrediction = p.username === 'ClawMysticBot' || (p.userWallet && p.userWallet.toLowerCase() === '0xece8b89d315aebad289fd7759c9446f948eca2f2');
-            let finalResult;
-
-            if (isClawPrediction) {
-                // For Claw predictions: use CryptoCompare directly, no Gemini comment
-                const tickerMatch = p.prediction.match(/\(([A-Z]+)\)/);
-                const ticker = tickerMatch ? tickerMatch[1] : null;
-                const targetMatch = p.prediction.match(/\$([\d.e+-]+)/i);
-                const targetPrice = targetMatch ? parseFloat(targetMatch[1]) : null;
-                let currentPrice = null;
-                if (ticker) {
-                    currentPrice = await new Promise((resolve) => {
-                        const https = require('https');
-                        https.get(`https://min-api.cryptocompare.com/data/price?fsym=${ticker}&tsyms=USD`, (res) => {
-                            let d = ''; res.on('data', x => d += x);
-                            res.on('end', () => { try { resolve(JSON.parse(d).USD || null); } catch(e) { resolve(null); } });
-                        }).on('error', () => resolve(null));
-                    });
-                }
-                // Determine direction by extracting initial price from text field
-                let isCorrect = false;
-                let initialPrice = null;
-                if (p.text) {
-                    const priceMatch = p.text.match(/(?:at|now|currently|trading at)\s*\$?([\d.]+)/i);
-                    if (priceMatch) initialPrice = parseFloat(priceMatch[1]);
-                }
-                
-                if (currentPrice !== null && targetPrice !== null) {
-                    if (initialPrice && initialPrice > targetPrice) {
-                        // Bearish prediction: price needs to drop to target
-                        isCorrect = currentPrice <= targetPrice;
-                    } else {
-                        // Bullish prediction (or unknown): price needs to rise to target
-                        isCorrect = currentPrice >= targetPrice;
-                    }
-                }
-                
-                const diff = currentPrice && targetPrice ? (((currentPrice - targetPrice) / targetPrice) * 100).toFixed(2) : '?';
-                const direction = initialPrice ? (initialPrice > targetPrice ? 'bearish (drop)' : 'bullish (rise)') : 'unknown direction';
-                finalResult = {
-                    isCorrect,
-                    explanation: currentPrice ? `Current: $${currentPrice}. Target: $${targetPrice}. Initial: $${initialPrice || '?'}. Direction: ${direction}. Diff: ${diff}%.` : 'Could not fetch price.',
-                    rawResponse: JSON.stringify({ currentPrice, targetPrice, initialPrice, isCorrect, direction })
-                };
-                // Save to Claw memory
-                const memoryLine = `${isCorrect ? 'WIN' : 'LOSS'} | ${p.prediction} | deadline: ${p.deadlineHuman} | ${ticker}: $${currentPrice} vs target $${targetPrice}\n`;
-                fs.appendFileSync('/home/rayzelnoblesse5/monad-mystic/claw_memory.md', memoryLine);
-            } else {
-                // For human predictions: use Gemini with CryptoCompare price
-                const result1 = await verifyWithWebSearch(p.prediction, p.deadlineHuman);
-                await new Promise(r => setTimeout(r, 3000));
-                const result2 = await verifyWithWebSearch(p.prediction, p.deadlineHuman);
-                const consensusCorrect = (result1.isCorrect === result2.isCorrect) ? result1.isCorrect : false;
-                finalResult = { ...result1, isCorrect: consensusCorrect };
-            }
-
-            p.verified = true;
-            p.verificationResult = finalResult;
-            p.rawVerification = [finalResult.rawResponse];
-            verified++;
-            if (!p.onChainId) { try { await finalizeProphecy(p.id, finalResult.isCorrect); } catch(e) { console.error("finalize failed:", e.message); } }
-
-            let paidMsg = "";
-            if (finalResult.isCorrect && p.userWallet && !p.payoutSent) {
-                const payoutAmount = p.isMysticFree ? "0.07" : "0.04";
-                const payoutResult = await payoutWinner(p.userWallet, payoutAmount);
-                p.payoutMethod = payoutResult.method;
-                p.payoutSent = payoutResult.success;
-                paidMsg = payoutResult.success ? "\n\n\uD83D\uDCB8 *" + payoutAmount + " MON sent to " + p.userWallet.slice(0,10) + "...*" : "\n\n\u26A0\uFE0F Payout failed - logged for review";
-                if (!payoutResult.success) p.payoutFailed = true;
-            }
-
-            // Broadcast verification to all chats
-            const verifyMsg =
-                    (finalResult.isCorrect ? "\uD83C\uDF89" : "\uD83D\uDE02") + " *PROPHECY #" + p.id + " " + (finalResult.isCorrect ? "FULFILLED" : "FAILED") + "!*\n\n" +
-                    "\uD83D\uDC64 *Prophet:* " + escapeMD(p.username || "Unknown Prophet") + "\n" +
-                    "\uD83D\uDCDC *Prediction:* _\"" + escapeMD(p.prediction) + "\"_\n" +
-                    "\uD83D\uDCC5 *Deadline was:* " + escapeMD(p.deadlineHuman) + "\n\n" +
-                    (finalResult.isCorrect ? "\u2705 THE ORACLE BOWS TO YOUR WISDOM!" : "\u274C WRONG! The Oracle cackles into the void!") + "\n" +
-                    "_\"" + escapeMD(finalResult.explanation) + "\"_" + paidMsg + "\n\n\uD83C\uDFC6 /leaderboard";
-            const allChats = new Set([p.chatId, currentChatId, ANNOUNCEMENT_CHAT_ID].filter(Boolean));
-            for (const chatId of allChats) {
-                bot.telegram.sendMessage(chatId, verifyMsg, { parse_mode: 'Markdown' }).catch(e => console.error('Verify broadcast error:', chatId, e.message));
-            }
-        } catch(e) {
-            console.error("Error verifying #" + p.id + ":", e.message);
-        } finally {
-            processingProphecies.delete(p.id);
-            p.isProcessing = false;
-            await saveDB(db);
-        }
-    }
-
-    if (!silent && currentChatId) {
-        if (verified === 0 && pending === 0) {
-            bot.telegram.sendMessage(currentChatId, "\uD83D\uDD2E *The Oracle gazes into the void...*\n\nNo prophecies exist yet, mortal. The blockchain awaits your vision.\n\nUse /predict to seal your fate! *hic*", { parse_mode: 'Markdown' });
-        } else if (verified === 0 && pending > 0) {
-            bot.telegram.sendMessage(currentChatId, "\u23F3 *The spirits are patient...*\n\n" + pending + " prophecy" + (pending > 1 ? "ies are" : " is") + " still ripening.\nThe Oracle will verify automatically when their time comes.\n\n_Check /leaderboard to see standings_", { parse_mode: 'Markdown' });
-        }
-    }
-    if (verified > 0) console.log("Verified " + verified + " prophecies");
 }
 
 async function checkProphecyById(id, ctx) {
@@ -404,7 +283,7 @@ bot.command('check', async (ctx) => {
         await checkProphecyById(parseInt(args[1]), ctx);
     } else {
         ctx.reply("\uD83D\uDD0D *The Oracle scans the timelines...*", { parse_mode: 'Markdown' });
-        await runVerificationCycle(ctx.chat.id, false);
+        // await runVerificationCycle(ctx.chat.id, false);
     }
 });
 
@@ -449,7 +328,7 @@ bot.on('text', async (ctx) => {
     if (Date.now() - state.ts > 5 * 60 * 1000) { userStates.delete(userId); return; }
     if (state.chatId && state.chatId !== ctx.chat.id) return;
     if (state.step === 'PREDICTING') {
-        const val = validateClaim(ctx.message.text);
+        const val = await validateClaim(ctx.message.text);
         if (!val.valid) { userStates.delete(userId); return ctx.reply(val.reason, { parse_mode: 'Markdown' }); }
         state.claim = ctx.message.text;
         state.step = 'PAYMENT_CHOICE';
@@ -493,7 +372,7 @@ bot.on('text', async (ctx) => {
                 deadlineHuman: fallbackDeadline.toLocaleString('en-US', { month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true }),
                 text: 'Generating...', verified: false, verificationResult: {}, rawVerification: [],
                 timestamp: new Date().toISOString(), paymentTx: 'mystic-free',
-                payoutSent: false, isProcessing: false, payoutFailed: false, payoutMethod: null, onChainId: null, isMysticFree: true
+                payoutSent: false, isProcessing: false, payoutFailed: false, payoutMethod: null, onChainId: null, isMysticFree: true, initialPrice: null
             };
             db.push(newProphecy);
             await saveDB(db);
@@ -504,8 +383,16 @@ bot.on('text', async (ctx) => {
                 newProphecy.deadline = result.deadline;
                 newProphecy.deadlineHuman = result.deadlineHuman;
                 newProphecy.text = result.text;
+                newProphecy.initialPrice = result.initialPrice || null;
                 await saveDB(db);
             } catch(e) {
+                if (e.message && e.message.includes('INVALID_COIN')) {
+                    const coinName = e.message.split(':')[1] || 'Unknown';
+                    await ctx.reply(`❌ <b>REJECTED</b>\n\n${coinName} Try using ticker symbols like BTC, ETH, SOL, MON, XRP, DOGE, ADA, etc.`, { parse_mode: 'HTML' });
+                    userStates.delete(userId);
+                    return;
+                }
+                console.error('generateProphecy error:', e.message);
                 result = Object.assign({}, newProphecy, { text: "The spirits bow to $MYSTIC royalty... *hic*" });
             }
             const shareUrl = buildShareUrl(result.prediction, result.deadlineHuman, result.text);
@@ -590,6 +477,12 @@ bot.on('text', async (ctx) => {
             newProphecy.text = result.text;
             await saveDB(db);
         } catch(e) {
+            if (e.message && e.message.includes('INVALID_COIN')) {
+                const coinName = e.message.split(':')[1] || 'Unknown';
+                await ctx.reply(`❌ <b>REJECTED</b>\n\n${coinName} Try using ticker symbols like BTC, ETH, SOL, MON, XRP, DOGE, ADA, etc.\n\n💸 Your 0.01 MON payment was received but refund not implemented yet. Contact support.`, { parse_mode: 'HTML' });
+                userStates.delete(userId);
+                return;
+            }
             console.error('Prophecy generation failed:', e.message);
             result = Object.assign({}, newProphecy, { text: "The spirits are troubled... your sacrifice is recorded, mortal." });
         }
@@ -636,7 +529,7 @@ setInterval(async () => {
         const db = await getDB();
         const now = new Date();
         const hasExpired = db.some(p => !p.verified && !p.isProcessing && !processingProphecies.has(p.id) && new Date(p.deadline) <= now);
-        if (hasExpired) await runVerificationCycle(ANNOUNCEMENT_CHAT_ID, true);
+        // if (hasExpired) await runVerificationCycle(ANNOUNCEMENT_CHAT_ID, true);
     }
 }, 5 * 60 * 1000);
 

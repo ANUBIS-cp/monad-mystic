@@ -60,7 +60,7 @@ function httpsPost(hostname, path, data, headers = {}) {
     });
 }
 
-async function getPrice(ticker) {
+async function getPrice(ticker, retries = 3) {
     const nameMap = {
         'monad':'mon','bitcoin':'btc','ethereum':'eth','ether':'eth','solana':'sol',
         'dogecoin':'doge','ripple':'xrp','cardano':'ada','shiba':'shib','avalanche':'avax',
@@ -69,8 +69,13 @@ async function getPrice(ticker) {
         'sui':'sui','bnb':'bnb','tron':'trx','litecoin':'ltc'
     };
     const t = (nameMap[ticker.toLowerCase()] || ticker).toUpperCase();
-    const data = await httpsGet(`https://min-api.cryptocompare.com/data/price?fsym=${t}&tsyms=USD`);
-    return data && data.USD ? { ticker: t, price: data.USD } : null;
+    
+    for (let attempt = 0; attempt < retries; attempt++) {
+        const data = await httpsGet(`https://min-api.cryptocompare.com/data/price?fsym=${t}&tsyms=USD`);
+        if (data && data.USD) return { ticker: t, price: data.USD };
+        if (attempt < retries - 1) await new Promise(r => setTimeout(r, 1000));
+    }
+    return null;
 }
 
 async function getTopMovers() {
@@ -130,13 +135,13 @@ function updateProphecy(id, fields) {
 function getMemory() {
     try {
         const lines = fs.readFileSync(MEMORY_FILE, 'utf8').split('\n').filter(Boolean);
-        return lines.slice(-20).join('\n'); // last 20 entries
+        return lines.slice(-10).join('\n'); // last 10 entries
     } catch(e) { return 'No memory yet.'; }
 }
 
 async function askClaude(systemPrompt, userMsg) {
     const response = await httpsPost('api.groq.com', '/openai/v1/chat/completions', {
-        model: 'llama-3.3-70b-versatile',
+        model: 'llama-3.1-8b-instant',
         max_tokens: 1024,
         messages: [
             { role: 'system', content: systemPrompt },
@@ -182,19 +187,15 @@ async function verifyPrediction(p) {
 
     if (currentPrice === null || targetPrice === null) return null;
 
-    // Determine direction from initial price in text field
-    let initialPrice = null;
-    if (p.text) {
-        const priceMatch = p.text.match(/(?:at|now|currently|trading at)\s*\$?([\d.]+)/i);
-        if (priceMatch) initialPrice = parseFloat(priceMatch[1]);
-    }
+    // Use stored initialPrice from database
+    const initialPrice = p.initialPrice;
 
     let isCorrect = false;
     if (initialPrice && initialPrice > targetPrice) {
         // Bearish: price needs to drop to target
         isCorrect = currentPrice <= targetPrice;
     } else {
-        // Bullish: price needs to rise to target
+        // Bullish or no initialPrice stored: price needs to rise to target
         isCorrect = currentPrice >= targetPrice;
     }
 
@@ -230,7 +231,7 @@ async function runCycle() {
         .map(([name, s]) => `${name}: ${s.correct}/${s.total}`).join(', ');
 
     const memory = getMemory();
-    const moversStr = topMovers.slice(0, 8).map(m => `${m.ticker} $${m.price} (${m.change24h?.toFixed(1)}%)`).join(', ');
+    const moversStr = topMovers.slice(0, 5).map(m => `${m.ticker} $${m.price.toFixed(2)} ${m.change24h?.toFixed(1)}%`).join(' | ');
     const timeSinceLastPrediction = Math.floor((Date.now() - lastPredictionTime) / 3600000);
     const oneDayAgo = new Date(Date.now() - 24 * 3600000).toISOString();
     const predictionsToday = prophecies.filter(p => 
@@ -246,12 +247,12 @@ async function runCycle() {
 CURRENT TIME: ${now.toISOString()}
 TOP MARKET MOVERS: ${moversStr}
 EXPIRED UNVERIFIED PREDICTIONS: ${expired.length > 0 ? expired.map(p => `#${p.id} by ${p.username}: "${p.prediction}" (deadline: ${p.deadlineHuman})`).join(' | ') : 'none'}
-PENDING PREDICTIONS: ${pending.length} active
+PENDING: ${pending.length}
 LEADERBOARD: ${leaderboard || 'empty'}
 HOURS SINCE LAST PREDICTION: ${timeSinceLastPrediction}
 PREDICTIONS REMAINING TODAY: ${predictionsRemaining}/${DAILY_PREDICTION_LIMIT} — spend them wisely
-MY ACTIVE PREDICTIONS (do NOT contradict these): ${myPending || 'none'}
-MOLTBOOK SOCIAL FEED (use postId for COMMENT action): ${moltFeed && moltFeed.posts ? moltFeed.posts.slice(0,4).map(p => 'ID:'+p.id+' | '+p.author.name+': '+p.title+' - '+(p.content||'').slice(0,80)).join(' || ') : 'unavailable'}
+${myPending ? 'MY ACTIVE: ' + myPending : ''}
+SOCIAL: ${moltFeed && moltFeed.posts ? moltFeed.posts.slice(0,2).map(p => p.id+':'+p.author.name+'-'+p.title.slice(0,40)).join(' | ') : 'n/a'}
 MY MEMORY (past results): ${memory}
 `.trim();
 
@@ -343,7 +344,7 @@ Write ONE savage witty comment (max 2 sentences). If correct: sarcastically cong
     // Handle Moltbook comment
     if (decision.action === 'COMMENT' && decision.postId && decision.comment) {
         const hoursSinceReact = (Date.now() - lastReactTime) / 3600000;
-        if (hoursSinceReact < 1) { log('Comment throttled'); }
+        if (hoursSinceReact < 0.5) { log('Comment throttled'); }
         else {
             const result = await moltComment(decision.postId, decision.comment);
             lastReactTime = Date.now(); saveState({ lastPredictionTime, lastReactTime });
@@ -355,7 +356,7 @@ Write ONE savage witty comment (max 2 sentences). If correct: sarcastically cong
     // Handle Moltbook post
     if (decision.action === 'POST' && decision.moltContent) {
         const hoursSinceReact = (Date.now() - lastReactTime) / 3600000;
-        if (hoursSinceReact < 3) { log('Post throttled'); }
+        if (hoursSinceReact < 1) { log('Post throttled'); }
         else {
             const result = await moltPost(decision.moltContent, decision.moltTitle || 'ClawMysticBot Analysis');
             lastReactTime = Date.now(); saveState({ lastPredictionTime, lastReactTime });
@@ -399,7 +400,7 @@ Write ONE savage witty comment (max 2 sentences). If correct: sarcastically cong
 
     if (decision.action === 'REACT' && decision.message) {
         const hoursSinceReact = (Date.now() - lastReactTime) / 3600000;
-        if (hoursSinceReact < 6) { log('React throttled - too soon'); return; }
+        if (hoursSinceReact < 2) { log('React throttled - too soon'); return; }
         lastReactTime = Date.now(); saveState({ lastPredictionTime, lastReactTime });
         await broadcastToAllChats(`🤖 <b>CLAW OBSERVES THE MARKET</b>\n\n${decision.message}`);
         log('Market reaction posted');
@@ -416,7 +417,7 @@ async function main() {
         } catch(e) {
             log('Cycle error: ' + e.message);
         }
-        await new Promise(r => setTimeout(r, 3 * 60 * 1000)); // 3 min loop
+        await new Promise(r => setTimeout(r, 10 * 60 * 1000)); // 10 min loop
     }
 }
 
