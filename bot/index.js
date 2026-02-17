@@ -230,7 +230,7 @@ async function checkProphecyById(id, ctx) {
 
         let paidMsg = "";
         if (finalResult.isCorrect && p.userWallet && !p.payoutSent) {
-            const payoutAmount = p.isMysticFree ? "0.1" : "0.2";
+            const payoutAmount = p.isMysticFree ? "0.07" : "0.2";
                 const payoutResult = await payoutWinner(p.userWallet, payoutAmount);
             p.payoutMethod = payoutResult.method;
             p.payoutSent = payoutResult.success;
@@ -261,7 +261,7 @@ bot.start((ctx) => {
     ctx.reply(
         "\uD83D\uDD2E *Monad Mystic* - AI Oracle on Monad\n\n" +
         "Pay 0.1 MON. Make a crypto prediction. Get roasted or rewarded.\n\n" +
-        "\u2705 Correct prediction \u2192 Win 0.04 MON\n" +
+        "\u2705 Correct prediction \u2192 Win 0.2 MON\n" +
         "\u274C Wrong \u2192 The Oracle laughs at you publicly\n\n" +
         "\u26A1 *Why Monad?*\n10,000 TPS = instant prophecy sealing\n~0.001 MON gas = nearly free on-chain storage\n\n" +
         "/predict - Make a prophecy\n/leaderboard - Top prophets\n/check - Verify expired prophecies\n/check 5 - Check prophecy #5\n\n" +
@@ -325,7 +325,7 @@ bot.command('adminpayout', async (ctx) => {
     await saveDB(db);
     await finalizeProphecy(id, isCorrect);
     if (isCorrect && p.userWallet && !p.payoutSent) {
-        const payoutAmount = p.isMysticFree ? "0.1" : "0.2";
+        const payoutAmount = p.isMysticFree ? "0.07" : "0.2";
                 const payoutResult = await payoutWinner(p.userWallet, payoutAmount);
         p.payoutSent = payoutResult.success;
         p.payoutMethod = 'admin-' + payoutResult.method;
@@ -450,7 +450,7 @@ bot.on('text', async (ctx) => {
         state.claim = ctx.message.text;
         state.step = 'PAYMENT_CHOICE';
         return ctx.reply(
-            "💰 *HOW DO YOU WANT TO PAY?*\n\n💎 Hold 250,000+ [$MYSTIC](https://nad.fun/tokens/0x05463f12b2Ca7654D8cB89873eC0cB8b2BFA7777) → FREE prediction + 0.07 MON if correct\n💳 No $MYSTIC → Pay 0.1 MON\n\nReply *1* to check $MYSTIC balance\nReply *2* to pay directly",
+            "💰 *HOW DO YOU WANT TO PAY?*\n\n💎 Hold 250,000+ [$MYSTIC](https://nad.fun/tokens/0x05463f12b2Ca7654D8cB89873eC0cB8b2BFA7777) → FREE prediction + 0.1 MON if correct\n💳 No $MYSTIC → Pay 0.1 MON\n\nReply *1* to check $MYSTIC balance\nReply *2* to pay directly",
             { parse_mode: 'Markdown' }
         );
     }

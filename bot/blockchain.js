@@ -134,9 +134,14 @@ async function finalizeProphecy(id, isCorrect) {
 }
 
 async function payoutWinner(winnerAddress, amount) {
-    amount = amount || "0.04";
+    amount = amount || "0.2";
     // SECURITY: On-chain payout only (contract holds pool). No direct fallback to keep funds safe in contract.
     try {
+        const contractBalance = await provider.getBalance(CA_ADDRESS);
+        if (contractBalance < ethers.parseEther(amount)) {
+            console.log("🚨 Contract balance too low to pay winner!");
+            return { success: false, method: 'contract_insufficient' };
+        }
         const balance = await provider.getBalance(wallet.address);
         if (balance < ethers.parseEther("0.05")) { // buffer for gas
             console.log("⚠️ Low gas in bot wallet — payout may fail.");
