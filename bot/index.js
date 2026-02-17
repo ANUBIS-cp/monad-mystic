@@ -35,7 +35,7 @@ const REWARD_POOL_ADDRESS = "0xece8b89d315aebad289fd7759c9446f948eca2f2";
 async function isPremiumUser(userWallet) {
     try {
         const balance = await mysticToken.balanceOf(userWallet);
-        return balance >= ethers.parseUnits("10000", 18);
+        return balance >= ethers.parseUnits("250000", 18);
     } catch(e) {
         console.error("Token balance check failed:", e.message);
         return false;
@@ -260,7 +260,7 @@ bot.start((ctx) => {
     setAnnouncementChat(ctx);
     ctx.reply(
         "\uD83D\uDD2E *Monad Mystic* - AI Oracle on Monad\n\n" +
-        "Pay 0.01 MON. Make a crypto prediction. Get roasted or rewarded.\n\n" +
+        "Pay 0.1 MON. Make a crypto prediction. Get roasted or rewarded.\n\n" +
         "\u2705 Correct prediction \u2192 Win 0.04 MON\n" +
         "\u274C Wrong \u2192 The Oracle laughs at you publicly\n\n" +
         "\u26A1 *Why Monad?*\n10,000 TPS = instant prophecy sealing\n~0.001 MON gas = nearly free on-chain storage\n\n" +
@@ -450,7 +450,7 @@ bot.on('text', async (ctx) => {
         state.claim = ctx.message.text;
         state.step = 'PAYMENT_CHOICE';
         return ctx.reply(
-            "💰 *HOW DO YOU WANT TO PAY?*\n\n💎 Hold 10,000+ [$MYSTIC](https://nad.fun/tokens/0x05463f12b2Ca7654D8cB89873eC0cB8b2BFA7777) → FREE prediction + 0.07 MON if correct\n💳 No $MYSTIC → Pay 0.01 MON\n\nReply *1* to check $MYSTIC balance\nReply *2* to pay directly",
+            "💰 *HOW DO YOU WANT TO PAY?*\n\n💎 Hold 250,000+ [$MYSTIC](https://nad.fun/tokens/0x05463f12b2Ca7654D8cB89873eC0cB8b2BFA7777) → FREE prediction + 0.07 MON if correct\n💳 No $MYSTIC → Pay 0.1 MON\n\nReply *1* to check $MYSTIC balance\nReply *2* to pay directly",
             { parse_mode: 'Markdown' }
         );
     }
@@ -462,7 +462,7 @@ bot.on('text', async (ctx) => {
         } else if (choice === '2') {
             state.step = 'PAYING';
             return ctx.replyWithMarkdown(
-                "\uD83D\uDEF0\uFE0F *SACRIFICE REQUIRED*\n\nSend exactly `0.01 MON` to:\n`" + process.env.CONTRACT_ADDRESS + "`\n\nThen paste your transaction hash here:\n\n\u26A0\uFE0F _Transaction must be within the last 30 minutes_"
+                "\uD83D\uDEF0\uFE0F *SACRIFICE REQUIRED*\n\nSend exactly `0.1 MON` to:\n`" + process.env.CONTRACT_ADDRESS + "`\n\nThen paste your transaction hash here:\n\n\u26A0\uFE0F _Transaction must be within the last 30 minutes_"
             );
         } else {
             return ctx.reply("\u274C Reply *1* for $MYSTIC check or *2* to pay directly.", { parse_mode: 'Markdown' });
@@ -478,7 +478,7 @@ bot.on('text', async (ctx) => {
         const isPremium = await isPremiumUser(walletAddr);
         if (isPremium) {
             state.isFree = true;
-            ctx.reply("\uD83D\uDC8E *$MYSTIC HOLDER DETECTED!*\n\nYou hold 10,000+ $MYSTIC — your prophecy is FREE!\n\n\u2728 Summoning the spirits for free...", { parse_mode: 'Markdown' });
+            ctx.reply("\uD83D\uDC8E *$MYSTIC HOLDER DETECTED!*\n\nYou hold 250,000+ $MYSTIC — your prophecy is FREE!\n\n\u2728 Summoning the spirits for free...", { parse_mode: 'Markdown' });
             const db = await getDB();
             const id = db.length > 0 ? Math.max(...db.map(p => p.id)) + 1 : 0;
             const fallbackDeadline = new Date(Date.now() + 24 * 3600000);
@@ -520,7 +520,7 @@ bot.on('text', async (ctx) => {
         }
         state.step = 'PAYING';
         return ctx.replyWithMarkdown(
-            "\uD83D\uDEF0\uFE0F *SACRIFICE REQUIRED*\n\nYou need 10,000 $MYSTIC for free predictions.\n\nSend exactly `0.01 MON` to:\n`" + process.env.CONTRACT_ADDRESS + "`\n\nThen paste your transaction hash here:\n\n\u26A0\uFE0F _Transaction must be within the last 30 minutes_"
+            "\uD83D\uDEF0\uFE0F *SACRIFICE REQUIRED*\n\nYou need 250,000 $MYSTIC for free predictions.\n\nSend exactly `0.1 MON` to:\n`" + process.env.CONTRACT_ADDRESS + "`\n\nThen paste your transaction hash here:\n\n\u26A0\uFE0F _Transaction must be within the last 30 minutes_"
         );
     }
 
@@ -541,7 +541,7 @@ bot.on('text', async (ctx) => {
                 'ALREADY_USED': "\u274C *REJECTED!* TX hash already used. Nice try, mortal. *hic*",
                 'TOO_OLD': "\u274C *REJECTED!* Transaction too old. Must be within last 30 minutes!",
                 'WRONG_DESTINATION': "\u274C *REJECTED!* TX not sent to vault address.",
-                'WRONG_AMOUNT': "\u274C *REJECTED!* Must send exactly 0.01 MON.",
+                'WRONG_AMOUNT': "\u274C *REJECTED!* Must send exactly 0.1 MON.",
                 'NOT_FOUND': "\u274C *REJECTED!* Transaction not found on Monad.",
                 'UNCONFIRMED': "\u274C *REJECTED!* TX not confirmed. Wait 10 seconds and retry.",
                 'ERROR': "\u274C *ERROR!* Could not verify. Try again."
@@ -555,7 +555,7 @@ bot.on('text', async (ctx) => {
         const isPremium = await isPremiumUser(userWallet);
         if (isPremium) ctx.reply("\uD83D\uDD2E Premium prophet detected! $MYSTIC holders get priority. *hic*");
 
-        //distributeFeeShare(ethers.parseEther("0.01")).catch(e => console.error("Fee share error:", e.message));
+        //distributeFeeShare(ethers.parseEther("0.1")).catch(e => console.error("Fee share error:", e.message));
 
         ctx.reply("\u2728 Sacrifice accepted! Summoning the spirits...");
 
@@ -596,7 +596,7 @@ bot.on('text', async (ctx) => {
         } catch(e) {
             if (e.message && e.message.includes('INVALID_COIN')) {
                 const coinName = e.message.split(':')[1] || 'Unknown';
-                await ctx.reply(`❌ <b>REJECTED</b>\n\n${coinName} Try using ticker symbols like BTC, ETH, SOL, MON, XRP, DOGE, ADA, etc.\n\n💸 Your 0.01 MON payment was received but refund not implemented yet. Contact support.`, { parse_mode: 'HTML' });
+                await ctx.reply(`❌ <b>REJECTED</b>\n\n${coinName} Try using ticker symbols like BTC, ETH, SOL, MON, XRP, DOGE, ADA, etc.\n\n💸 Your 0.1 MON payment was received but refund not implemented yet. Contact support.`, { parse_mode: 'HTML' });
                 userStates.delete(userId);
                 return;
             }

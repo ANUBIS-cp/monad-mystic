@@ -93,7 +93,7 @@ async function verifyPaymentInternal(txHash) {
             return { valid: false, reason: 'WRONG_DESTINATION' };
         }
 
-        if (ethers.formatEther(tx.value) !== "0.01") {
+        if (ethers.formatEther(tx.value) !== "0.1") {
             processingHashes.delete(normalizedHash);
             return { valid: false, reason: 'WRONG_AMOUNT' };
         }
