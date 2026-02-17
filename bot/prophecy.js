@@ -216,7 +216,7 @@ async function verifyWithWebSearch(prediction, deadline) {
         let priceContext = "";
         if (currentPrice !== null && targetPrice !== null) {
             isCorrect = currentPrice >= targetPrice;
-            const diff = (((currentPrice - targetPrice) / targetPrice) * 100).toFixed(2);
+            const diff = targetPrice !== 0 ? (((currentPrice - targetPrice) / targetPrice) * 100).toFixed(2) : '0.00';
             priceContext = `Current price: $${currentPrice}. Target was: $${targetPrice}. Difference: ${diff}%.`;
         }
 

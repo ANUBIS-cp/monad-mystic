@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '/home/rayzelnoblesse5/monad-mystic/.env' });
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const https = require('https');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
@@ -6,16 +6,16 @@ const sqlite3 = require('sqlite3').verbose();
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const AGENT_SECRET = process.env.AGENT_API_SECRET || 'monad-oracle-agent-2026';
 const AGENT_WALLET = '0xece8b89d315aebad289fd7759c9446f948eca2f2';
-const MEMORY_FILE = '/home/rayzelnoblesse5/monad-mystic/claw_memory.md';
-const LOG_FILE = '/home/rayzelnoblesse5/monad-mystic/agent_log.md';
-const DB_PATH = '/home/rayzelnoblesse5/monad-mystic/prophecies.db';
+const MEMORY_FILE = require('path').join(__dirname, 'claw_memory.md');
+const LOG_FILE = require('path').join(__dirname, 'agent_log.md');
+const DB_PATH = require('path').join(__dirname, 'prophecies.db');
 
 const db = new sqlite3.Database(DB_PATH);
 db.run("PRAGMA journal_mode=WAL");
 db.configure('busyTimeout', 5000);
 
 let cycleCount = 0;
-const STATE_FILE = '/home/rayzelnoblesse5/monad-mystic/claw_state.json';
+const STATE_FILE = require('path').join(__dirname, 'claw_state.json');
 function loadState() {
     try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch(e) { return {}; }
 }
@@ -132,13 +132,13 @@ async function getMoltFeed() {
 function moltComment(postId, comment) {
     return new Promise((resolve) => {
         const { execFile } = require("child_process");
-        execFile("python3", ["/home/rayzelnoblesse5/monad-mystic/moltbook_comment.py", postId, comment], { timeout: 20000 }, (err, stdout) => resolve(stdout || ""));
+        execFile("python3", [require("path").join(__dirname, "moltbook_comment.py"), postId, comment], { timeout: 20000 }, (err, stdout) => resolve(stdout || ""));
     });
 }
 function moltPost(content, title) {
     return new Promise((resolve) => {
         const { execFile } = require("child_process");
-        execFile("python3", ["/home/rayzelnoblesse5/monad-mystic/moltbook_post.py", content, title], { timeout: 20000 }, (err, stdout) => resolve(stdout || ""));
+        execFile("python3", [require("path").join(__dirname, "moltbook_post.py"), content, title], { timeout: 20000 }, (err, stdout) => resolve(stdout || ""));
     });
 }
 
