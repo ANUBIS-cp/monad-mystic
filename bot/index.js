@@ -1,3 +1,4 @@
+const conversationHistory = new Map();
 let sqldb;
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
@@ -405,11 +406,19 @@ bot.on('text', async (ctx) => {
             }).on('error', () => resolve(null));
         });
         const priceStr = livePrices ? Object.entries(livePrices).filter(([k,v])=>v.USD).map(([k,v]) => `${k}:${v.USD}`).join(', ') : '';
+        
+        // Get or create conversation history for this user
+        const userId2 = ctx.from.id;
+        if (!conversationHistory.has(userId2)) conversationHistory.set(userId2, []);
+        const history = conversationHistory.get(userId2);
+        history.push({ role: 'user', content: question });
+        if (history.length > 6) history.splice(0, 2); // keep last 3 exchanges
+        
         const body = JSON.stringify({
             model: 'llama-3.1-8b-instant', max_tokens: 300,
             messages: [
                 { role: 'system', content: `You are Chog - a sharp, cynical AI with a dark sense of humor. You know crypto deeply but you're not limited to it. You talk like a real person, not a bot. No emojis, no cringe, no forced crypto references. Answer what's asked directly. If it's about crypto use these live prices: ${priceStr}. MON = Monad (L1 blockchain). Max 2-3 sentences. Memory:\n${memory}` },
-                { role: 'user', content: question }
+                ...history
             ]
         });
         try {
