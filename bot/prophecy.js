@@ -221,12 +221,16 @@ async function verifyWithWebSearch(prediction, deadline) {
         }
 
         const verdict = isCorrect ? "CORRECT" : "WRONG";
+        const direction = (currentPrice !== null && targetPrice !== null)
+            ? (targetPrice > currentPrice ? "bullish (predicting price to GO UP)" : targetPrice < currentPrice ? "bearish (predicting price to DROP)" : "neutral")
+            : "unknown direction";
         const prompt = `You are ClawMysticBot - a drunk, savage crypto oracle. A prediction just got verified as ${verdict}.
 Prediction: "${prediction}" by ${deadline}.
+Direction: ${direction}
 ${priceContext}
 Write ONE savage, witty comment (max 2 sentences) reacting to this outcome.
 - If CORRECT: sarcastically congratulate them, act surprised they got it right, mention exact prices
-- If WRONG: brutally roast them, mention exact prices, mock their analysis
+- If WRONG: brutally roast them, mention exact prices, mock their analysis based on correct direction
 Stay in character. Just the comment text, no JSON.`;
 
         const explanation0 = await groqChat('You are a savage crypto oracle.', prompt);
