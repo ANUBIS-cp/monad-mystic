@@ -230,7 +230,7 @@ async function checkProphecyById(id, ctx) {
 
         let paidMsg = "";
         if (finalResult.isCorrect && p.userWallet && !p.payoutSent) {
-            const payoutAmount = p.isMysticFree ? "0.07" : "0.04";
+            const payoutAmount = p.isMysticFree ? "0.1" : "0.2";
                 const payoutResult = await payoutWinner(p.userWallet, payoutAmount);
             p.payoutMethod = payoutResult.method;
             p.payoutSent = payoutResult.success;
@@ -325,7 +325,7 @@ bot.command('adminpayout', async (ctx) => {
     await saveDB(db);
     await finalizeProphecy(id, isCorrect);
     if (isCorrect && p.userWallet && !p.payoutSent) {
-        const payoutAmount = p.isMysticFree ? "0.07" : "0.04";
+        const payoutAmount = p.isMysticFree ? "0.1" : "0.2";
                 const payoutResult = await payoutWinner(p.userWallet, payoutAmount);
         p.payoutSent = payoutResult.success;
         p.payoutMethod = 'admin-' + payoutResult.method;
