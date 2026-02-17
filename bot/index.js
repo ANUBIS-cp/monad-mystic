@@ -65,31 +65,56 @@ const getDB = () => new Promise((resolve) => {
     });
 });
 
-const saveDB = (data) => new Promise((resolve) => {
+const insertProphecyRow = (p) => new Promise((resolve) => {
     if (!sqldb || !sqldb.open) { try { initDB(); } catch(e) { resolve(); return; } }
-    sqldb.serialize(() => {
-        sqldb.run("BEGIN TRANSACTION");
-        sqldb.run("DELETE FROM prophecies", [], (err) => {
-            if (err) { sqldb.run("ROLLBACK"); console.error('DB clear error:', err.message); resolve(); return; }
-            const stmt = sqldb.prepare("INSERT INTO prophecies (id, userWallet, username, userId, chatId, prediction, deadline, deadlineHuman, text, verified, verificationResult, rawVerification, payoutSent, payoutMethod, payoutFailed, isProcessing, onChainId, timestamp, paymentTx) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-            data.forEach(p => {
-                stmt.run(p.id, p.userWallet, p.username, p.userId, p.chatId, p.prediction, p.deadline, p.deadlineHuman, p.text, p.verified ? 1 : 0, JSON.stringify(p.verificationResult || {}), JSON.stringify(p.rawVerification || []), p.payoutSent ? 1 : 0, p.payoutMethod, p.payoutFailed ? 1 : 0, p.isProcessing ? 1 : 0, p.onChainId, p.timestamp, p.paymentTx);
-            });
-            stmt.finalize();
-            sqldb.run("COMMIT", (err) => {
-                if (err) console.error('DB commit error:', err.message);
-                for (let i = 2; i >= 0; i--) {
-                    const oldB = dbPath + ".backup" + i;
-                    const newB = dbPath + ".backup" + (i+1);
-                    if (fs.existsSync(oldB)) fs.renameSync(oldB, newB);
-                }
-                try { fs.copyFileSync(dbPath, dbPath + ".backup0"); } catch(e) {}
-                try { fs.writeFileSync(cacheFile, JSON.stringify(data)); } catch(e) {}
-                resolve();
-            });
-        });
-    });
+    const stmt = sqldb.prepare("INSERT OR IGNORE INTO prophecies (id, userWallet, username, userId, chatId, prediction, deadline, deadlineHuman, text, verified, verificationResult, rawVerification, payoutSent, payoutMethod, payoutFailed, isProcessing, onChainId, timestamp, paymentTx, initialPrice) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+    stmt.run(
+        p.id, p.userWallet, p.username, p.userId, p.chatId,
+        p.prediction, p.deadline, p.deadlineHuman, p.text,
+        p.verified ? 1 : 0,
+        JSON.stringify(p.verificationResult || {}),
+        JSON.stringify(p.rawVerification || []),
+        p.payoutSent ? 1 : 0,
+        p.payoutMethod,
+        p.payoutFailed ? 1 : 0,
+        p.isProcessing ? 1 : 0,
+        p.onChainId, p.timestamp, p.paymentTx, p.initialPrice || null
+    );
+    stmt.finalize((err) => { if (err) console.error("Insert Error:", err); resolve(); });
 });
+
+const updateProphecyRow = (p) => new Promise((resolve) => {
+    if (!sqldb || !sqldb.open) { try { initDB(); } catch(e) { resolve(); return; } }
+    sqldb.run(
+        `UPDATE prophecies SET verified=?, verificationResult=?, rawVerification=?, payoutSent=?, payoutMethod=?, payoutFailed=?, isProcessing=?, onChainId=?, paymentTx=?, prediction=?, deadline=?, deadlineHuman=?, text=?, initialPrice=? WHERE id=?`,
+        [
+            p.verified ? 1 : 0,
+            JSON.stringify(p.verificationResult || {}),
+            JSON.stringify(p.rawVerification || []),
+            p.payoutSent ? 1 : 0,
+            p.payoutMethod,
+            p.payoutFailed ? 1 : 0,
+            p.isProcessing ? 1 : 0,
+            p.onChainId, p.paymentTx,
+            p.prediction, p.deadline, p.deadlineHuman, p.text,
+            p.initialPrice || null,
+            p.id
+        ],
+        (err) => { if (err) console.error("Update Error:", err); resolve(); }
+    );
+});
+
+// Legacy saveDB - now just updates each row atomically instead of wipe+rewrite
+const saveDB = async (data) => {
+    for (const p of data) {
+        const exists = await new Promise((resolve) => {
+            sqldb.get("SELECT id FROM prophecies WHERE id=?", [p.id], (err, row) => resolve(!!row));
+        });
+        if (exists) await updateProphecyRow(p);
+        else await insertProphecyRow(p);
+    }
+    try { fs.writeFileSync(cacheFile, JSON.stringify(data)); } catch(e) {}
+};
 
 function getDBSync() {
     try { return JSON.parse(fs.readFileSync(cacheFile, 'utf8') || '[]'); } catch(e) { return []; }
@@ -195,15 +220,11 @@ async function checkProphecyById(id, ctx) {
     await saveDB(db);
 
     try {
-        const result1 = await verifyWithWebSearch(p.prediction, p.deadlineHuman);
-        await new Promise(r => setTimeout(r, 3000));
-        const result2 = await verifyWithWebSearch(p.prediction, p.deadlineHuman);
-        const consensusCorrect = (result1.isCorrect === result2.isCorrect) ? result1.isCorrect : false;
-        const finalResult = { ...result1, isCorrect: consensusCorrect };
+        const finalResult = await verifyWithWebSearch(p.prediction, p.deadlineHuman);
 
         p.verified = true;
         p.verificationResult = finalResult;
-        p.rawVerification = [result1.rawResponse, result2.rawResponse];
+        p.rawVerification = [finalResult.rawResponse];
         if (!p.onChainId) { try { await finalizeProphecy(p.id, finalResult.isCorrect); } catch(e) { console.error("finalize failed:", e.message); } }
 
         let paidMsg = "";

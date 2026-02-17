@@ -336,9 +336,13 @@ Respond ONLY with valid JSON:
 
     let decision;
     try {
-        const clean = response.replace(/```json|```/g, '').trim();
-        decision = JSON.parse(clean.substring(clean.indexOf('{'), clean.lastIndexOf('}') + 1));
-    } catch(e) { log('Claude JSON parse error: ' + e.message); return; }
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("No JSON object found in response");
+        decision = JSON.parse(jsonMatch[0]);
+    } catch(e) {
+        log('Claude JSON parse error: ' + e.message + ' | Raw: ' + response.slice(0, 50) + '...');
+        return;
+    }
 
     log(`Claude decision: ${decision.action} | ${decision.reasoning}`);
 

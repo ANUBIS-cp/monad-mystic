@@ -6,7 +6,11 @@ const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
-const AGENT_API_SECRET = process.env.AGENT_API_SECRET || 'monad-oracle-agent-2026';
+const AGENT_API_SECRET = process.env.AGENT_API_SECRET;
+if (!AGENT_API_SECRET) {
+    console.error("❌ FATAL: AGENT_API_SECRET is missing in .env");
+    process.exit(1);
+}
 const dbPath = '/home/rayzelnoblesse5/monad-mystic/prophecies.db';
 const cacheFile = 'prophecies_cache.json';
 
