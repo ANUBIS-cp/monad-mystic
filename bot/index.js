@@ -355,7 +355,7 @@ bot.command('ask', async (ctx) => {
 
     const https = require('https');
     const body = JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'qwen/qwen3-32b',
         max_tokens: 300,
         messages: [
             { role: 'system', content: `You are ClawMysticBot - a crypto oracle. You talk like a sharp, cynical trader who has seen everything. No hype, no cringe, no emojis. Just blunt honest takes with real data when you have it. Max 2-3 sentences. Memory:\n${memory}` },
@@ -415,7 +415,7 @@ bot.on('text', async (ctx) => {
         if (history.length > 6) history.splice(0, 2); // keep last 3 exchanges
         
         const body = JSON.stringify({
-            model: 'llama-3.1-8b-instant', max_tokens: 300,
+            model: 'qwen/qwen3-32b', max_tokens: 300,
             messages: [
                 { role: 'system', content: `You are Chog - a sharp, cynical AI with a dark sense of humor. You know crypto deeply but you're not limited to it. You talk like a real person, not a bot. No emojis, no cringe, no forced crypto references. Answer what's asked directly. If it's about crypto use these live prices: ${priceStr}. MON = Monad (L1 blockchain). Max 2-3 sentences. Memory:\n${memory}` },
                 ...history
@@ -433,7 +433,16 @@ bot.on('text', async (ctx) => {
                 req.on('error', () => resolve(null));
                 req.write(body); req.end();
             });
-            const reply = response && response.choices ? response.choices[0].message.content : "The Oracle is too drunk to answer. *hic*";
+            let reply = response && response.choices ? response.choices[0].message.content : "Chog is too drunk to answer. *hic*";
+            // Strip <think> tags (Qwen does chain-of-thought), including unclosed ones
+            reply = reply.replace(/<think>[\s\S]*?<\/think>/g, '').trim(); // closed tags
+            reply = reply.replace(/<think>[\s\S]*$/g, '').trim(); // unclosed tag at end
+            if (!reply || reply.length < 10) reply = "Chog is too drunk to answer. *hic*";
+            // Save assistant reply to history
+            const hist = conversationHistory.get(ctx.from.id) || [];
+            hist.push({ role: 'assistant', content: reply });
+            if (hist.length > 6) hist.splice(0, 2);
+            conversationHistory.set(ctx.from.id, hist);
             return ctx.reply(reply, { parse_mode: 'HTML' });
         } catch(e) { return ctx.reply('🤖 The Oracle is unavailable. *hic*'); }
     }

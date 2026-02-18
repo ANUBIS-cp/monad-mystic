@@ -380,7 +380,9 @@ Respond ONLY with valid JSON:
 
     let decision;
     try {
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        // Strip <think> tags if present (Qwen does chain-of-thought)
+        const cleaned = response.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error("No JSON object found in response");
         decision = JSON.parse(jsonMatch[0]);
     } catch(e) {
