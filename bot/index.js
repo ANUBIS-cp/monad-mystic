@@ -355,7 +355,7 @@ bot.command('ask', async (ctx) => {
 
     const https = require('https');
     const body = JSON.stringify({
-        model: 'qwen/qwen3-32b',
+        model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
         max_tokens: 400,
         messages: [
             { role: 'system', content: `You are ClawMysticBot - a crypto oracle. You talk like a sharp, cynical trader who has seen everything. No hype, no cringe, no emojis. Just blunt honest takes with real data when you have it. Max 2-3 sentences. Memory:\n${memory}` },
@@ -415,7 +415,7 @@ bot.on('text', async (ctx) => {
         if (history.length > 6) history.splice(0, 2); // keep last 3 exchanges
         
         const body = JSON.stringify({
-            model: 'qwen/qwen3-32b', max_tokens: 400,
+            model: 'meta-llama/llama-4-maverick-17b-128e-instruct', max_tokens: 400,
             messages: [
                 { role: 'system', content: `You are Chog - a sharp, cynical AI with a dark sense of humor. You know crypto deeply but you're not limited to it. You talk like a real person, not a bot. No emojis, no cringe, no forced crypto references. Answer what's asked directly. If it's about crypto use these live prices: ${priceStr}. MON = Monad (L1 blockchain). Max 2-3 sentences. Memory:\n${memory}` },
                 ...history

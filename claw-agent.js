@@ -52,9 +52,20 @@ function httpsPost(hostname, path, data, headers = {}) {
         }, (res) => {
             let d = '';
             res.on('data', x => d += x);
-            res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { resolve(null); } });
+            res.on('end', () => { 
+                try { 
+                    const parsed = JSON.parse(d);
+                    if (hostname === 'api.groq.com' && parsed && parsed.error) {
+                        log('Groq error: ' + JSON.stringify(parsed.error));
+                    }
+                    resolve(parsed);
+                } catch(e) { 
+                    log('Parse error from ' + hostname + ': ' + d.slice(0, 150));
+                    resolve(null); 
+                } 
+            });
         });
-        req.on('error', reject);
+        req.on('error', (e) => { log('Request error: ' + e.message); reject(e); });
         req.write(body);
         req.end();
     });
@@ -171,14 +182,16 @@ function getMemory() {
 }
 
 async function askClaude(systemPrompt, userMsg) {
-    const response = await httpsPost('api.groq.com', '/openai/v1/chat/completions', {
-        model: 'qwen/qwen3-32b',
+    const payload = {
+        model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
         max_tokens: 800,
         messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMsg }
         ]
-    }, { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` });
+    };
+    log('SENDING TO GROQ MODEL: ' + payload.model);
+    const response = await httpsPost('api.groq.com', '/openai/v1/chat/completions', payload, { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` });
     if (!response || !response.choices) return null;
     return response.choices[0].message.content;
 }
