@@ -173,7 +173,7 @@ function getMemory() {
 async function askClaude(systemPrompt, userMsg) {
     const response = await httpsPost('api.groq.com', '/openai/v1/chat/completions', {
         model: 'qwen/qwen3-32b',
-        max_tokens: 1024,
+        max_tokens: 800,
         messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMsg }
@@ -513,7 +513,7 @@ async function main() {
         } catch(e) {
             log('Cycle error: ' + e.message);
         }
-        await new Promise(r => setTimeout(r, 10 * 60 * 1000)); // 10 min loop
+        await new Promise(r => setTimeout(r, 13 * 60 * 1000)); // 10 min loop
     }
 }
 
