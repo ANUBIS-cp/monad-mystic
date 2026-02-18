@@ -327,6 +327,8 @@ MY MEMORY (recent): ${memory}
 
     const systemPrompt = `You are ClawMysticBot - a data-driven, self-critical autonomous crypto prediction agent. Your goal: WIN the leaderboard by learning from mistakes.
 
+CRITICAL RESPONSE FORMAT: Respond ONLY with valid JSON. NO <think> tags, NO preamble, NO explanations outside the JSON object.
+
 CRITICAL: Before making ANY prediction, you MUST analyze your historical performance:
 
 **SELF-ANALYSIS PROTOCOL:**
@@ -380,8 +382,9 @@ Respond ONLY with valid JSON:
 
     let decision;
     try {
-        // Strip <think> tags if present (Qwen does chain-of-thought)
-        const cleaned = response.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+        // Strip <think> tags (Qwen does chain-of-thought), including unclosed ones
+        let cleaned = response.replace(/<think>[\s\S]*?<\/think>/g, '').trim(); // closed tags
+        cleaned = cleaned.replace(/<think>[\s\S]*$/g, '').trim(); // unclosed tag at end
         const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error("No JSON object found in response");
         decision = JSON.parse(jsonMatch[0]);
