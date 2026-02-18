@@ -450,7 +450,7 @@ bot.on('text', async (ctx) => {
         state.claim = ctx.message.text;
         state.step = 'PAYMENT_CHOICE';
         return ctx.reply(
-            "💰 *HOW DO YOU WANT TO PAY?*\n\n💎 Hold 250,000+ [$MYSTIC](https://nad.fun/tokens/0x05463f12b2Ca7654D8cB89873eC0cB8b2BFA7777) → FREE prediction + 0.1 MON if correct\n💳 No $MYSTIC → Pay 0.1 MON\n\nReply *1* to check $MYSTIC balance\nReply *2* to pay directly",
+            "💰 *HOW DO YOU WANT TO PAY?*\n\n💎 Hold 250,000+ [$MYSTIC](https://nad.fun/tokens/0x05463f12b2Ca7654D8cB89873eC0cB8b2BFA7777) → FREE prediction + 0.07 MON if correct\n💳 No $MYSTIC → Pay 0.1 MON → Win 0.2 MON if correct\n\nReply *1* to check $MYSTIC balance\nReply *2* to pay directly",
             { parse_mode: 'Markdown' }
         );
     }

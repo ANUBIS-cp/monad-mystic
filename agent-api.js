@@ -123,7 +123,7 @@ http.createServer(async (req, res) => {
                 return;
             }
 
-            const val = validateClaim(claim);
+            const val = await validateClaim(claim);
             if (!val.valid) {
                 res.writeHead(400);
                 res.end(JSON.stringify({ error: val.reason }));

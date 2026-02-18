@@ -26,3 +26,24 @@ LOSS | Pepe (PEPE) will reach $0.000009 | pepe: $0.00000439 vs target $0.000009 
 LOSS | Dogecoin (DOGE) will reach $0.12500 | DOGE: $0.09883 vs target $0.125 | diff: -20.94%
 LOSS | Pepe (PEPE) will reach $0.00000688 | pepe: $0.00000441 vs target $0.00000688 | diff: -35.90%
 LOSS | Dogecoin (DOGE) will reach $0.118750 | DOGE: $0.09898 vs target $0.11875 | diff: -16.65%
+LOSS | Monad (MON) will reach $0.0231 | MON: $0.02185 vs target $0.0231 | diff: -5.41%
+LOSS | Monad will reach $0.016 | mon: $0.02206 vs target $0.016 | diff: 37.88%
+LOSS | Bitcoin (BTC) will reach $98000 | BTC: $67596.87 vs target $98000 | diff: -31.02%
+LOSS | Solana (SOL) will reach $179.99 | SOL: $85.03 vs target $179.99 | diff: -52.76%
+LOSS | Monad will reach $0.024 in 12 hours | mon: $0.02214 vs target $0.024 | diff: -7.75%
+WIN | AIOZ Network (AIOZ) will reach $0.25 | AIOZ: $0.06658 vs target $0.25 | diff: -73.37%
+LOSS | PepeCoin (PEPE) will reach $0.000006 | pepe: $0.0000044 vs target $0.000006 | diff: -26.67%
+LOSS | Ethereum (ETH) will reach $2800 | ETH: $1995.35 vs target $2800 | diff: -28.74%
+LOSS | Bitcoin (BTC) will reach $97000 | BTC: $67564.59 vs target $97000 | diff: -30.35%
+LOSS | Ethereum (ETH) will reach $2750 | ETH: $1995.35 vs target $2750 | diff: -27.44%
+LOSS | PayPie (PAYAI) will reach $0.15 | PAYAI: $0.005333 vs target $0.15 | diff: -96.44%
+LOSS | PayAI (PAYAI) will reach $0.08 | PAYAI: $0.005333 vs target $0.08 | diff: -93.33%
+LOSS | XRP will reach $1.58 | XRP: $1.468 vs target $1.58 | diff: -7.09%
+LOSS | Eth will reach $1850 | ETH: $1973.63 vs target $1850 | diff: 6.68%
+LOSS | Bitcoin will reach $67,000 | btc: $67889.68 vs target $67 | diff: 101227.88%
+LOSS | BNB will reach $700 | BNB: $615.33 vs target $700 | diff: -12.10%
+LOSS | BNB will reach $650 | BNB: $616.01 vs target $650 | diff: -5.23%
+LOSS | monad to 0.02465 in 6 hours | mon: $0.02114 vs target $0.02465 | diff: -14.24%
+LOSS | mon to 0.03 in 12 hours | MON: $0.02114 vs target $0.03 | diff: -29.53%
+WIN | btc to 64k in 7 hours | BTC: $67526.05 vs target $64 | diff: 105409.45%
+LOSS | eth to 2100 in 7 hours | ETH: $1985.44 vs target $NaN | diff: NaN%

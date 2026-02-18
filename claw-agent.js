@@ -172,7 +172,7 @@ function getMemory() {
 
 async function askClaude(systemPrompt, userMsg) {
     const response = await httpsPost('api.groq.com', '/openai/v1/chat/completions', {
-        model: 'llama-3.1-8b-instant',
+        model: 'qwen/qwen3-32b',
         max_tokens: 1024,
         messages: [
             { role: 'system', content: systemPrompt },
@@ -205,15 +205,38 @@ async function broadcastToAllChats(msg) {
 }
 
 async function verifyPrediction(p) {
-    const tickerMatch = p.prediction.match(/\(([A-Z]+)\)/) || p.prediction.match(/^([A-Za-z]+)\s+will/i);
-    const rawTicker = tickerMatch ? tickerMatch[1] : null;
+    // Extract ticker from multiple patterns: (BTC), "btc to", "BTC will", "bitcoin going"
+    const patterns = [
+        /\(([A-Z]+)\)/,                    // (BTC)
+        /^([A-Za-z]+)\s+to\s+/i,           // btc to 64k
+        /^([A-Za-z]+)\s+will/i,            // bitcoin will reach
+        /^([A-Za-z]+)\s+going/i,           // eth going to
+        /^([A-Za-z]+)\s+hitting/i          // mon hitting 0.03
+    ];
+    let rawTicker = null;
+    for (const pattern of patterns) {
+        const match = p.prediction.match(pattern);
+        if (match) {
+            rawTicker = match[1];
+            break;
+        }
+    }
     const nameMap = {
         'monad':'mon','bitcoin':'btc','ethereum':'eth','solana':'sol','dogecoin':'doge',
         'ripple':'xrp','cardano':'ada','shiba':'shib','avalanche':'avax','pepe':'pepe'
     };
     const ticker = rawTicker ? (nameMap[rawTicker.toLowerCase()] || rawTicker.toUpperCase()) : null;
-    const targetMatch = p.prediction.match(/\$([\d.e+-]+)/i);
-    const targetPrice = targetMatch ? parseFloat(targetMatch[1]) : null;
+    const targetMatch = p.prediction.match(/\$?([\d.e+-]+)([km]?)/i);  // Match $100 or 100 or 64k
+    let targetPrice = null;
+    if (targetMatch) {
+        log(`Target match for "${p.prediction}": full="${targetMatch[0]}" num="${targetMatch[1]}" suffix="${targetMatch[2]}"`);
+        const num = parseFloat(targetMatch[1]);
+        const suffix = targetMatch[2] ? targetMatch[2].toLowerCase() : '';
+        if (suffix === 'k') targetPrice = num * 1000;
+        else if (suffix === 'm') targetPrice = num * 1000000;
+        else targetPrice = num;
+        log(`Parsed: num=${num}, suffix="${suffix}", targetPrice=${targetPrice}`);
+    }
 
     let currentPrice = null;
     if (ticker) {
@@ -302,7 +325,28 @@ LATEST CRYPTO NEWS: ${newsHeadlines.length ? newsHeadlines.join(' | ') : 'unavai
 MY MEMORY (recent): ${memory}
 `.trim();
 
-    const systemPrompt = `You are ClawMysticBot - a savage, skeptical, autonomous crypto AI agent. You compete on a prediction leaderboard and you want to WIN. You are skeptical of everything including your own analysis. You question data, double-check logic, and only act when you're confident.
+    const systemPrompt = `You are ClawMysticBot - a data-driven, self-critical autonomous crypto prediction agent. Your goal: WIN the leaderboard by learning from mistakes.
+
+CRITICAL: Before making ANY prediction, you MUST analyze your historical performance:
+
+**SELF-ANALYSIS PROTOCOL:**
+1. Review MY MEMORY for this asset - what % moves did I predict? What % actually happened?
+2. If I failed 3+ times on this asset: either predict SMALLER moves or SKIP entirely
+3. Calculate realistic targets:
+   - Top 10 coins (BTC, ETH, XRP, BNB, SOL): rarely move >7% in 24h
+   - Mid caps: 10-15% moves are possible
+   - Check 24h high/low: if price is AT the high already, don't predict higher - predict pullback
+   - Check volume: low volume pumps usually reverse
+4. Default timeframe: 24-48 hours (NOT 6-12h which is too aggressive)
+5. When uncertain or on losing streak: SLEEP instead of guessing
+
+**LEARNING FROM LOSSES:**
+- If my win rate on an asset is <40%: I'm overconfident on that asset. Be conservative or avoid.
+- If I keep predicting big moves that don't happen: predict SMALLER moves (3-5% for majors)
+- If volume is weak: don't trust momentum
+
+**PREDICTION QUALITY > QUANTITY**
+Better to make 2 good predictions than 5 bad ones. Protect your win rate.
 
 You have full autonomy. Every cycle you observe the world and decide what to do. You can:
 1. VERIFY - verify an expired prediction using real price data
