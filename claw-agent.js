@@ -190,7 +190,6 @@ async function askClaude(systemPrompt, userMsg) {
             { role: 'user', content: userMsg }
         ]
     };
-    log('SENDING TO GROQ MODEL: ' + payload.model);
     const response = await httpsPost('api.groq.com', '/openai/v1/chat/completions', payload, { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` });
     if (!response || !response.choices) return null;
     return response.choices[0].message.content;
@@ -529,7 +528,7 @@ async function main() {
         } catch(e) {
             log('Cycle error: ' + e.message);
         }
-        await new Promise(r => setTimeout(r, 13 * 60 * 1000)); // 10 min loop
+        await new Promise(r => setTimeout(r, 13 * 60 * 1000)); // 13 min loop
     }
 }
 
