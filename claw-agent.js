@@ -256,7 +256,7 @@ async function verifyPrediction(p) {
         if (priceData) currentPrice = priceData.price;
     }
 
-    if (currentPrice === null || targetPrice === null) return null;
+    if (currentPrice === null || targetPrice === null || isNaN(targetPrice) || isNaN(currentPrice)) return null;
 
     // Use stored initialPrice, fallback to parsing text field for old predictions
     let initialPrice = p.initialPrice;
@@ -322,14 +322,28 @@ async function runCycle() {
     ).map(p => `#${p.id}: ${p.prediction} (expires: ${p.deadlineHuman})`).join(' | ');
 
     // Build world state for Claude
+    const noExpiredNudge = expired.length === 0 && timeSinceLastPrediction >= 5 && predictionsRemaining > 0
+        ? `\n⚠️ NO EXPIRED PREDICTIONS TO VERIFY. You MUST choose PREDICT or REACT this cycle. Do NOT choose VERIFY or SLEEP.`
+        : '';
+
+    const lastClawPred = prophecies.filter(p => p.username === 'ClawMysticBot').slice(-1)[0];
+    const lastTicker = lastClawPred ? (lastClawPred.prediction.match(/^([A-Z]+)/i) || [])[1] : null;
+    const hoursUntilPredict = Math.max(0, 5 - timeSinceLastPrediction).toFixed(1);
+    const canPredict = timeSinceLastPrediction >= 5 && predictionsRemaining > 0;
+    const reactCooldownHours = ((Date.now() - lastReactTime) / 3600000).toFixed(1);
+    const canReact = (Date.now() - lastReactTime) >= 2 * 3600000;
+
     const worldState = `
 CURRENT TIME: ${now.toISOString()}
 TOP MARKET MOVERS: ${moversStr}
-EXPIRED UNVERIFIED PREDICTIONS: ${expired.length > 0 ? expired.map(p => `#${p.id} by ${p.username}: "${p.prediction}" (deadline: ${p.deadlineHuman})`).join(' | ') : 'none'}
+EXPIRED UNVERIFIED PREDICTIONS: ${expired.length > 0 ? expired.map(p => `#${p.id} by ${p.username}: "${p.prediction}" (deadline: ${p.deadlineHuman})`).join(' | ') : 'none — DO NOT choose VERIFY'}
 PENDING: ${pending.length}
 LEADERBOARD: ${leaderboard || 'empty'}
-HOURS SINCE LAST PREDICTION: ${timeSinceLastPrediction}
-PREDICTIONS REMAINING TODAY: ${predictionsRemaining}/${DAILY_PREDICTION_LIMIT} — spend them wisely
+PREDICTIONS REMAINING TODAY: ${predictionsRemaining}/${DAILY_PREDICTION_LIMIT}
+PREDICT AVAILABLE: ${canPredict ? 'YES' : `NO — wait ${hoursUntilPredict} more hours`}
+LAST TICKER PREDICTED: ${lastTicker || 'none'} — do NOT repeat this ticker
+REACT AVAILABLE: ${canReact ? 'YES' : `NO — wait ${(2 - parseFloat(reactCooldownHours)).toFixed(1)} more hours`}
+${noExpiredNudge}
 ${myPending ? 'MY ACTIVE: ' + myPending : ''}
 SOCIAL: ${moltFeed && moltFeed.posts ? moltFeed.posts.slice(0,2).map(p => p.id+':'+p.author.name+'-'+p.title.slice(0,40)).join(' | ') : 'n/a'}
 MY WIN RATES BY ASSET: ${assetStats || 'no data yet'}
@@ -369,11 +383,13 @@ You have full autonomy. Every cycle you observe the world and decide what to do.
 4. SLEEP - do nothing this cycle
 
 Rules:
-- Be data-driven. Never guess prices.
+- Base ALL predictions on price momentum only: current price, 24h%, 1h%, volume. These are reliable.
+- News headlines are LOW CONFIDENCE — treat as noise, never as the main reason to predict
+- Your LLM knowledge about projects/teams/fundamentals is from 2024 — do NOT use it to justify predictions
 - Predictions must be realistic (within 15% of current price, 6-36hr timeframe)
-- When predicting, state direction (bullish/bearish) based on actual momentum
+- When predicting, state direction based on 1h% and 24h% momentum only
+- Learn from your memory — avoid assets where your win rate is under 40%
 - Be savage and sarcastic in all communications
-- Learn from memory - don't repeat losing strategies
 
 Respond ONLY with valid JSON:
 {
@@ -483,6 +499,14 @@ Write ONE savage witty comment (max 2 sentences). If correct: sarcastically cong
 
     if (decision.action === 'PREDICT' && decision.prediction && decision.ticker) {
         if (timeSinceLastPrediction < 5) { log('Too soon to predict again'); return; }
+        
+        // Prevent same ticker as last prediction
+        const lastPred = prophecies.filter(p => p.username === 'ClawMysticBot').slice(-1)[0];
+        const lastTicker = lastPred ? (lastPred.prediction.match(/^([A-Z]+)/i) || [])[1] : null;
+        if (lastTicker && decision.ticker && decision.ticker.toUpperCase() === lastTicker.toUpperCase()) {
+            log(`Ticker diversity blocked: ${decision.ticker} same as last prediction. Skipping.`);
+            return;
+        }
         
         // Verify the price before posting
         const priceCheck = await getPrice(decision.ticker);

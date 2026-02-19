@@ -387,25 +387,88 @@ bot.on('text', async (ctx) => {
     const msgText = ctx.message.text || '';
     if (msgText.toLowerCase().startsWith('chog ') || msgText.toLowerCase() === 'chog') {
         const question = msgText.slice(5).trim() || 'what do you think about the market?';
-        const memory = (() => {
-            try {
-                const lines = require('fs').readFileSync('/home/rayzelnoblesse5/monad-mystic/claw_memory.md', 'utf8').split('\n').filter(Boolean);
-                return lines.slice(-5).join('\n');
-            } catch(e) { return ''; }
-        })();
         const https = require('https');
-        // Extract coins from question and fetch live prices
         const nameMap2 = {'monad':'mon','bitcoin':'btc','ethereum':'eth','solana':'sol','dogecoin':'doge','ripple':'xrp','cardano':'ada','shiba':'shib','avalanche':'avax','pepe':'pepe','binance':'bnb'};
         const words2 = question.toLowerCase().split(/\s+/);
         const mentioned2 = [...new Set(words2.map(w => nameMap2[w] || w).filter(w => /^[a-z]{2,10}$/.test(w)))];
         const coinsToFetch2 = [...new Set(['btc','eth','sol','mon',...mentioned2])].slice(0,10).join(',').toUpperCase();
-        const livePrices = await new Promise((resolve) => {
-            https.get(`https://min-api.cryptocompare.com/data/pricemulti?fsyms=${coinsToFetch2}&tsyms=USD`, (res) => {
-                let d = ''; res.on('data', x => d += x);
-                res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { resolve(null); } });
-            }).on('error', () => resolve(null));
-        });
-        const priceStr = livePrices ? Object.entries(livePrices).filter(([k,v])=>v.USD).map(([k,v]) => `${k}:${v.USD}`).join(', ') : '';
+
+        const [liveData, fearGreed, btcFunding, fourHourData] = await Promise.all([
+            // Full price data
+            new Promise((resolve) => {
+                https.get(`https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${coinsToFetch2}&tsyms=USD`, (res) => {
+                    let d = ''; res.on('data', x => d += x);
+                    res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { resolve(null); } });
+                }).on('error', () => resolve(null));
+            }),
+            // Fear & Greed index
+            new Promise((resolve) => {
+                https.get('https://api.alternative.me/fng/?limit=1', (res) => {
+                    let d = ''; res.on('data', x => d += x);
+                    res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { resolve(null); } });
+                }).on('error', () => resolve(null));
+            }),
+            // CoinGecko global market data
+            new Promise((resolve) => {
+                const req = https.request({ hostname: 'api.coingecko.com', path: '/api/v3/global', method: 'GET', headers: { 'User-Agent': 'MonadMysticBot/1.0' } }, (res) => {
+                    let d = ''; res.on('data', x => d += x);
+                    res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { resolve(null); } });
+                });
+                req.on('error', () => resolve(null));
+                req.end();
+            }),
+            // 4h candles for key coins (fetch 4 hourly candles, compare open to close)
+            new Promise((resolve) => {
+                const keyCoins = [...new Set(['BTC','ETH','SOL','MON',...coinsToFetch2.split(',')])].slice(0,6);
+                Promise.all(keyCoins.map(coin =>
+                    new Promise((res) => {
+                        https.get(`https://min-api.cryptocompare.com/data/v2/histohour?fsym=${coin}&tsym=USD&limit=4`, (r) => {
+                            let d = ''; r.on('data', x => d += x);
+                            r.on('end', () => { try { const p = JSON.parse(d); res({ coin, data: p.Data && p.Data.Data }); } catch(e) { res(null); } });
+                        }).on('error', () => res(null));
+                    })
+                )).then(results => resolve(results.filter(Boolean)));
+            })
+        ]);
+
+        // Build price string with 1h, 4h, 24h
+        const fourHourMap = {};
+        if (Array.isArray(fourHourData)) {
+            fourHourData.forEach(({ coin, data }) => {
+                if (data && data.length >= 2) {
+                    const open4h = data[0].open;
+                    const close4h = data[data.length - 1].close;
+                    fourHourMap[coin] = open4h > 0 ? (((close4h - open4h) / open4h) * 100).toFixed(2) : null;
+                }
+            });
+        }
+
+        const priceStr = liveData && liveData.RAW ? Object.entries(liveData.RAW).filter(([k,v])=>v.USD).map(([k,v]) => {
+            const r = v.USD;
+            const fh = fourHourMap[k] !== undefined ? ` | 4h: ${fourHourMap[k]}%` : '';
+            return `${k}: $${r.PRICE} | 1h: ${r.CHANGEPCTHOUR?.toFixed(2)}% | 4h:${fh} | 24h: ${r.CHANGEPCT24HOUR?.toFixed(2)}% | vol: $${(r.TOTALVOLUME24HTO/1e6)?.toFixed(0)}M | high: $${r.HIGH24HOUR} | low: $${r.LOW24HOUR}`;
+        }).join('\n') : '';
+
+        const fgValue = fearGreed && fearGreed.data && fearGreed.data[0];
+        const fgStr = fgValue ? `Fear & Greed Index: ${fgValue.value}/100 (${fgValue.value_classification})` : '';
+        const fundingStr = (() => {
+            try {
+                const d = btcFunding && btcFunding.data;
+                if (!d) return '';
+                const btcDom = d.market_cap_percentage && d.market_cap_percentage.btc ? d.market_cap_percentage.btc.toFixed(2) : null;
+                const totalMcap = d.total_market_cap && d.total_market_cap.usd ? '$' + (d.total_market_cap.usd / 1e12).toFixed(2) + 'T' : null;
+                const mcapChange = d.market_cap_change_percentage_24h_usd ? d.market_cap_change_percentage_24h_usd.toFixed(2) : null;
+                const domSignal = btcDom > 55 ? 'high dominance — money in BTC, alts weak, risk-off'
+                                : btcDom < 45 ? 'low dominance — money rotating to alts, risk-on'
+                                : 'neutral dominance';
+                const mcapSignal = mcapChange > 2 ? 'total market expanding, bullish'
+                                 : mcapChange < -2 ? 'total market contracting, bearish'
+                                 : 'total market flat';
+                return `BTC Dominance: ${btcDom}% (${domSignal}) | Total Market Cap: ${totalMcap} (${mcapChange}% 24h — ${mcapSignal})`;
+            } catch(e) { return ''; }
+        })();
+
+        const marketContext = [fgStr, fundingStr].filter(Boolean).join('\n');
         
         // Get or create conversation history for this user
         const userId2 = ctx.from.id;
@@ -417,7 +480,7 @@ bot.on('text', async (ctx) => {
         const body = JSON.stringify({
             model: 'meta-llama/llama-4-maverick-17b-128e-instruct', max_tokens: 400,
             messages: [
-                { role: 'system', content: `You are Chog - a sharp, cynical AI with a dark sense of humor. You know crypto deeply but you're not limited to it. You talk like a real person, not a bot. No emojis, no cringe, no forced crypto references. Answer what's asked directly. If it's about crypto use these live prices: ${priceStr}. MON = Monad (L1 blockchain). Max 2-3 sentences. Memory:\n${memory}` },
+                { role: 'system', content: `You are Chog - a professional crypto trader with 10 years experience. You read markets like a technician and think like a quant. Rules:\n- 4h trend is your primary signal. 1h is entry timing. 24h is context only.\n- Volume increasing into highs = distribution (bearish). Volume increasing into lows = accumulation (bullish).\n- BTC dominance above 55% = money hiding in BTC, alts bleeding, risk-off. Below 45% = rotation into alts, risk-on.\n- Total market cap shrinking 24h = bearish. Expanding = bullish.\n- Fear & Greed below 25 = extreme fear, historically strong buy signal. Above 75 = extreme greed, top signal, lean bearish.\n- If BTC 4h up but ETH/SOL flat = alts weak, risk-off. If alts outperforming BTC = risk-on rotation.\nYou MUST reference Fear & Greed, BTC dominance, and total market cap in every market direction answer. Always state which timeframe drives your call. Never invent price targets. Use ONLY this data:\n${priceStr}\n${marketContext}\nMON = Monad (L1 blockchain). Max 3 sentences. No hype, no hedging.` },
                 ...history
             ]
         });

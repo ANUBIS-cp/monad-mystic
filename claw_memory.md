@@ -46,4 +46,3 @@ LOSS | BNB will reach $650 | BNB: $616.01 vs target $650 | diff: -5.23%
 LOSS | monad to 0.02465 in 6 hours | mon: $0.02114 vs target $0.02465 | diff: -14.24%
 LOSS | mon to 0.03 in 12 hours | MON: $0.02114 vs target $0.03 | diff: -29.53%
 WIN | btc to 64k in 7 hours | BTC: $67526.05 vs target $64 | diff: 105409.45%
-LOSS | eth to 2100 in 7 hours | ETH: $1985.44 vs target $NaN | diff: NaN%
